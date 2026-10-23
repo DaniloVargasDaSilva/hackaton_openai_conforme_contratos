@@ -26,7 +26,7 @@ Depois de enviar a NF e as entregas, a aba Ocorrências mostra **5 ocorrências 
 | Implantação do CRM: 12 dias de atraso, multa não descontada | 4.1 e 4.3 | R$ 720,00 |
 | SLA: 98,9% medido, mínimo de 99,5%, crédito não aplicado | 5.1 e 5.2 | R$ 1.554,00 |
 
-Nas regras de utilização: 22 licenças da suíte sem uso (R$ 1.364/mês), 6 de pessoas desligadas (R$ 372/mês) e 9 usuários do CRM Pro que só usam o básico.
+Nas regras de utilização: 22 licenças da suíte sem uso (R$ 1.364/mês) e 9 usuários do CRM Pro que só usam o básico.
 
 ## De onde vêm
 

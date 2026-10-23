@@ -15,7 +15,7 @@ export const seedData = seed as unknown as {
   expectedCheck: {
     occurrences: { key: string; impact: number }[];
     atStake: number;
-    opportunities: { itemId: string; rule: "sem_uso" | "desligados" | "plano_acima"; monthlyValue: number | null }[];
+    opportunities: { itemId: string; rule: "sem_uso" | "plano_acima"; monthlyValue: number | null }[];
   };
 };
 

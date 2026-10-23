@@ -58,7 +58,7 @@ export function AbcDashboard() {
   const cr = check.data;
   const temConferencia = !!cr && cr.occurrences.length > 0;
   const opp = cr?.opportunities ?? [];
-  const semUso = opp.filter((o) => o.rule === "sem_uso" || o.rule === "desligados");
+  const semUso = opp.filter((o) => o.rule === "sem_uso");
   const semUsoMes = semUso.reduce((acc, o) => acc + (o.monthlyValue ?? 0), 0);
 
   const futuras = data
@@ -113,7 +113,7 @@ export function AbcDashboard() {
           rot="Licenças pagas sem uso"
           val={semUso.length ? `${money(semUsoMes)}` : "—"}
           cor="var(--alerta)"
-          meta={semUso.length ? "por mês · sem uso + desligados" : "aparece depois da conferência"}
+          meta={semUso.length ? "por mês · contratadas sem uso" : "aparece depois da conferência"}
         />
         <Kpi
           rot="Renovação mais próxima"
