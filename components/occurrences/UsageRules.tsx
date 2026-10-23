@@ -24,7 +24,6 @@ export function UsageRules({
   const pct = showBar ? Math.min(100, Math.max(0, (active / total) * 100)) : 0;
 
   const semUso = opportunities.find((o) => o.itemId === "suite" && o.rule === "sem_uso");
-  const desligados = opportunities.find((o) => o.itemId === "suite" && o.rule === "desligados");
   const monthly = (op?: Opportunity) =>
     op && op.monthlyValue != null ? (
       <>
@@ -65,7 +64,7 @@ export function UsageRules({
             >
               <i style={{ width: `${pct}%` }} />
             </div>
-            <div className="mt-3 grid grid-cols-1 gap-2 text-[14px] sm:grid-cols-3">
+            <div className="mt-3 grid grid-cols-1 gap-2 text-[14px] sm:grid-cols-2">
               <div>
                 <b className="num">{number(active)}</b>
                 <div className="text-[13px] text-tinta-fraca">em uso</div>
@@ -73,10 +72,6 @@ export function UsageRules({
               <div>
                 <b className="num">{leadingCount(semUso) ?? number(total - active)}</b>
                 <div className="text-[13px] text-tinta-fraca">sem uso{monthly(semUso)}</div>
-              </div>
-              <div>
-                <b className="num">{leadingCount(desligados) ?? "—"}</b>
-                <div className="text-[13px] text-tinta-fraca">de desligados{monthly(desligados)}</div>
               </div>
             </div>
           </div>

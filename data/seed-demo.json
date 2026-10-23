@@ -446,7 +446,7 @@
   "usageFacts": [
     {
       "itemId": "suite",
-      "terminatedAssigned": 6,
+      "terminatedAssigned": 0,
       "overPlanUsers": 0
     },
     {
@@ -484,11 +484,6 @@
         "itemId": "suite",
         "rule": "sem_uso",
         "monthlyValue": 1364
-      },
-      {
-        "itemId": "suite",
-        "rule": "desligados",
-        "monthlyValue": 372
       },
       {
         "itemId": "crm",

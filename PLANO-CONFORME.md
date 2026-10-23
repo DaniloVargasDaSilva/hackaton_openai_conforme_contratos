@@ -34,7 +34,7 @@ MVP de referência (clicável, com todas as telas e números): o artifact "Plano
 | `sla:sla` | 98,9% < 99,5%, crédito não aplicado | R$ 1.554 |
 | **Total em jogo** | | **R$ 4.644** |
 
-Oportunidades (regras de utilização, não são divergência): 22 licenças da suíte sem uso (R$ 1.364/mês), 6 de pessoas desligadas (R$ 372/mês), 9 usuários do CRM Pro que só usam o básico (sem valor).
+Oportunidades (regras de utilização, não são divergência): 22 licenças da suíte sem uso (R$ 1.364/mês), 9 usuários do CRM Pro que só usam o básico (sem valor).
 
 ---
 
@@ -191,7 +191,7 @@ export type Occurrence = z.infer<typeof Occurrence>;
 export const Opportunity = z.object({
   id: z.string(),
   itemId: z.string(),
-  rule: z.enum(["sem_uso", "desligados", "plano_acima"]),
+  rule: z.enum(["sem_uso", "desligados", "plano_acima"]), // desligados: fora do escopo (LGPD), não é usado
   title: z.string(),
   monthlyValue: z.number().nullable(),
   detail: z.string(),
@@ -376,7 +376,7 @@ model UsageFact {
   id                 String @id @default(cuid())
   contractId         String
   itemId             String
-  terminatedAssigned Int    @default(0)  // licenças de desligados (lista do RH)
+  terminatedAssigned Int    @default(0)  // fora do escopo (LGPD): fica 0
   overPlanUsers      Int    @default(0)  // usuários em plano acima do uso
 }
 ```
@@ -409,7 +409,7 @@ Para cada `InvoiceLine`, pega o `ContractItem` do mesmo `itemId`:
 
 **Oportunidades (regras de utilização)**
 - `sem_uso`: `min(billedQty, quantity) − activeUsers` licenças × `unitPrice`
-- `desligados`: `UsageFact.terminatedAssigned × unitPrice`
+- `desligados`: fora do escopo (LGPD). O Conforme não cruza a lista de desligados do RH; `terminatedAssigned` fica 0 no seed.
 - `plano_acima`: `UsageFact.overPlanUsers` (valor `null`)
 
 `title`, `explanation` e `evidence` saem do código (templates), com os números e as cláusulas de `clauseRefs`. O texto de `evidence.contract[].quote` vem da tabela `Clause`, não da IA.

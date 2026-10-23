@@ -99,10 +99,6 @@ export const opportunityFixtures: Record<string, Pick<Opportunity, "title" | "de
     title: "22 licenças da suíte sem uso em 30 dias",
     detail: "120 contratadas, 98 com uso. Dá para reduzir na renovação.",
   },
-  "suite:desligados": {
-    title: "6 licenças atribuídas a pessoas desligadas",
-    detail: "Cruzamento da lista do RH de outubro com o console da suíte.",
-  },
   "crm:plano_acima": {
     title: "9 usuários do CRM Pro usam só recursos do plano básico",
     detail: "Rebaixar o plano desses usuários na renovação.",
