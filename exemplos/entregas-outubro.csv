@@ -1,0 +1,9 @@
+item_id,fonte,data_entrega,qtd_entregue,usuarios_ativos,disponibilidade_pct
+suite,"Console de administração · uso em 30 dias",,,98,
+crm,"Console do CRM",,40,,
+backup,"Painel de backup",,1,,
+tokens,"Painel de consumo",,58,,
+suporte,"Relatório de chamados",,38,,
+implantacao,"Termo de aceite",2026-10-27,1,,
+treinamento,"Lista de presença",2026-10-29,2,,
+sla,"Relatório de disponibilidade de setembro",,,,98.9
