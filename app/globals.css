@@ -69,9 +69,9 @@
   --sombra-painel: -12px 0 32px rgba(20, 18, 15, .10);
 
   /* ---- Tipografia --------------------------------------------------- */
-  --fonte-ui: var(--font-instrument), system-ui, sans-serif;
+  --fonte-ui: var(--font-interface), system-ui, sans-serif; /* definida em app/layout.tsx */
   --fonte-doc: var(--font-source-serif), Georgia, serif;
-  --fonte-num: var(--font-plex-mono), ui-monospace, monospace;
+  --fonte-num: var(--fonte-ui); /* números na mesma fonte, com tabular-nums */
 }
 
 
@@ -195,7 +195,7 @@ a{color:var(--acento)}
 /* Valor nunca quebra no meio; o card de total encolhe a fonte pela própria largura. */
 .num{white-space:nowrap}
 .card{min-width:0;container-type:inline-size}
-.card-val{white-space:nowrap;font-size:clamp(22px,12.5cqi,40px)}
+.card-val{font-variant-numeric:tabular-nums;white-space:nowrap;font-size:clamp(22px,12.5cqi,40px)}
 .btn{cursor:pointer;transition:background .15s,border-color .15s}
 .btn:hover{border-color:var(--tinta-tenue)}
 .btn-pri:hover{background:var(--acento-forte);border-color:var(--acento-forte)}

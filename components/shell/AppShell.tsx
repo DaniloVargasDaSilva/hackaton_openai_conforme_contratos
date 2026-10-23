@@ -16,6 +16,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const nav = [
     { href: "/", label: "Carteira", on: path === "/" },
+    { href: "/painel", label: "Painel", on: path === "/painel" },
     { href: `${DEMO}?aba=contrato`, label: "Contratos", on: path.startsWith("/contratos") && aba !== "ocorrencias" },
     { href: `${DEMO}?aba=ocorrencias`, label: "Ocorrências", on: path.startsWith("/contratos") && aba === "ocorrencias" },
   ];
