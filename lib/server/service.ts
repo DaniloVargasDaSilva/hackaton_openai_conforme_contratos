@@ -99,7 +99,7 @@ export async function extractContract(id: string): Promise<ContractDetail> {
     });
     await tx.contract.update({
       where: { id },
-      data: { extractionSource: source, extractedAt: new Date() },
+      data: { extractionSource: source, extractedAt: new Date(), checkedAt: null },
     });
   }, TX_OPTIONS);
 
@@ -127,6 +127,7 @@ export async function uploadInvoiceCsv(contractId: string, csv: string) {
 
   await prisma.$transaction(async (tx) => {
     await tx.invoiceLine.deleteMany({ where: { contractId } });
+    await tx.contract.update({ where: { id: contractId }, data: { checkedAt: null } });
     await tx.invoiceLine.createMany({
       data: lines.map((line, index) => ({
         ...line,
@@ -193,6 +194,8 @@ export async function uploadDeliveries(
 
 export async function patchInvoiceLine(lineId: string, patch: InvoiceLinePatch): Promise<InvoiceLine> {
   const row = await prisma.invoiceLine.update({ where: { id: lineId }, data: patch });
+  // A edição muda os números: a conferência anterior não vale mais.
+  await prisma.contract.update({ where: { id: row.contractId }, data: { checkedAt: null } });
   return toLine(row);
 }
 

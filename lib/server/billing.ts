@@ -60,6 +60,11 @@ const clearDelivered = (l: LineState): LineState => ({
   deliverySource: null,
 });
 
+/** Os dados mudaram: a última conferência não vale mais, e o próximo GET /check reconfere. */
+async function invalidateCheck(db: Db, contractId: string) {
+  await db.contract.update({ where: { id: contractId }, data: { checkedAt: null } });
+}
+
 /** Texto único da tela: junta o lado faturado e o lado entregue. */
 const joinSources = (invoice: string | null, delivery: string | null) =>
   [invoice, delivery].filter(Boolean).join(" + ") || "—";
@@ -167,7 +172,7 @@ async function persistNf(
   }
 
   await saveStates(db, contractId, states, positionOf);
-  await db.contract.update({ where: { id: contractId }, data: { nf: parsed.nf as unknown as Prisma.InputJsonValue } });
+  await db.contract.update({ where: { id: contractId }, data: { nf: parsed.nf as unknown as Prisma.InputJsonValue, checkedAt: null } });
 
   // Erros de linha (produto desconhecido) voltam junto, e a NF segue valendo para o que foi reconhecido.
   return { nf: parsed.nf, errors: parsed.errors };
@@ -203,5 +208,6 @@ export async function applyDeliveries(
   }
 
   await saveStates(db, contractId, states, positionOf);
+  await invalidateCheck(db, contractId);
   return { errors };
 }
