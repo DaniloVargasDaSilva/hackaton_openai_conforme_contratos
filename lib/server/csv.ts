@@ -1,6 +1,7 @@
 // Dan: parse e validação do CSV da fatura.
 // Cabeçalho obrigatório (seção 8). Linha inválida vai para `errors` e não derruba o upload.
 import type { InvoiceLine } from "@/lib/contracts";
+import { resolveItemId } from "./match";
 
 export const INVOICE_CSV_HEADER = [
   "item_id",
@@ -172,7 +173,7 @@ export function parseInvoiceCsv(text: string, validItemIds: Set<string>) {
  * CSV de entregas (lado "entregue" da conferência em 3 vias).
  * Colunas: item_id, fonte, data_entrega, qtd_entregue, usuarios_ativos, disponibilidade_pct.
  */
-export function parseDeliveriesCsv(text: string, validItemIds: Set<string>) {
+export function parseDeliveriesCsv(text: string, items: { id: string; name: string }[]) {
   const rows = parseCsvRows(text);
   const errors: CsvError[] = [];
   const deliveries: ParsedDelivery[] = [];
@@ -196,7 +197,8 @@ export function parseDeliveriesCsv(text: string, validItemIds: Set<string>) {
     const row = index + 2;
     const itemId = (at(r, "item_id") ?? "").trim();
 
-    if (!validItemIds.has(itemId)) {
+    const resolvedId = resolveItemId(items, itemId, at(r, "fonte") ?? "");
+    if (!resolvedId) {
       errors.push({ row, message: `item_id "${itemId}" não existe no contrato` });
       return;
     }
@@ -216,7 +218,7 @@ export function parseDeliveriesCsv(text: string, validItemIds: Set<string>) {
     }
 
     deliveries.push({
-      itemId,
+      itemId: resolvedId,
       source: (at(r, "fonte") ?? "").trim() || `linha ${row}`,
       deliveredAt,
       measuredQty,

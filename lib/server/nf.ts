@@ -1,6 +1,7 @@
 // Dan: leitura do XML da NF (lado "faturado" da conferência em 3 vias).
 // Devolve o documento para o DANFE da tela e o que foi faturado por item do contrato.
 import { XMLParser, XMLValidator } from "fast-xml-parser";
+import { resolveItemId } from "./match";
 import type { ContractItem } from "@/lib/contracts";
 import type { NfDocument, NfItem, UploadError } from "@/lib/contracts-3vias";
 
@@ -83,7 +84,7 @@ export function parseNfXml(xml: string, items: ContractItem[]): ParsedNf {
     const line = Number(det["@_nItem"]) || index + 1;
     const item: NfItem = {
       line,
-      itemId: known.has(cProd) ? cProd : null,
+      itemId: resolveItemId(items, cProd, str(prod.xProd)),
       description: str(prod.xProd),
       unit: str(prod.uCom),
       qty: num(prod.qCom),

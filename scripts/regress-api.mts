@@ -294,6 +294,31 @@ ok("relatório de id inexistente: 404", errIs(r, 404, "NOT_FOUND"));
 r = await call("POST", `/contracts/${newId}/report`, Report);
 ok("contrato sem ocorrências: relatório diz que não há divergência", r.status === 200 && r.data?.source === "template" && /nenhuma/i.test(r.data?.text ?? ""));
 
+/* ================= contrato criado do zero (o fluxo "Novo contrato") ================= */
+sec("Novo contrato com o texto da demo → extrair → NF e entregas");
+const textoDemo = readFileSync("data/demo/contrato-042-2026-ficticio.txt", "utf8");
+r = await call("POST", "/contracts", ContractDetail, { number: "777/2026", supplier: "NuvemSoft (teste)", object: "Teste do fluxo novo", annualValue: 318000, renewsAt: "2027-08-31", text: textoDemo });
+const zeroId = r.data?.contract?.id;
+ok("contrato novo nasce sem itens", r.status === 201 && r.data?.items?.length === 0);
+r = await call("POST", `/contracts/${zeroId}/nf`, UploadNfResult, { xml });
+ok("sem itens, a NF volta UM erro que manda extrair (não um por linha)", r.status === 200 && r.data?.nf === null && r.data.errors.length === 1 && /Extrair/.test(r.data.errors[0].message), `(${r.data?.errors?.length} erro(s))`);
+r = await call("POST", `/contracts/${zeroId}/deliveries`, UploadDeliveriesResult, { csv });
+ok("sem itens, as entregas voltam UM erro que manda extrair", r.status === 200 && r.data?.errors?.length === 1 && /Extrair/.test(r.data.errors[0].message));
+r = await call("GET", `/contracts/${zeroId}/nf`, NfResponse);
+ok("o envio recusado não gravou NF", r.data?.nf === null);
+r = await call("POST", `/contracts/${zeroId}/extract`, ContractDetail);
+ok("extrair o texto da demo devolve os 8 itens (ai ou fallback)", r.status === 200 && r.data?.items?.length === 8, `(origem ${r.data?.extraction?.source}, ${r.data?.items?.length} itens)`);
+r = await call("POST", `/contracts/${zeroId}/nf`, UploadNfResult, { xml });
+ok("depois de extrair, a NF casa as 8 linhas e sem erros", r.status === 200 && r.data?.nf?.items?.length === 8 && r.data.errors.length === 0, JSON.stringify((r.data?.errors ?? []).slice(0, 2)));
+r = await call("POST", `/contracts/${zeroId}/deliveries`, UploadDeliveriesResult, { csv });
+ok("as entregas casam as 8 linhas e sem erros", r.status === 200 && r.data?.lines?.length === 8 && r.data.errors.length === 0, JSON.stringify((r.data?.errors ?? []).slice(0, 2)));
+r = await call("POST", `/contracts/${zeroId}/check`, CheckResult3);
+ok("conferência do contrato novo: 5 ocorrências e R$ 4.644", r.data?.occurrences?.length === 5 && r.data.totals.atStake === 4644, `(${r.data?.occurrences?.length}, R$ ${r.data?.totals?.atStake})`);
+r = await call("POST", `/contracts`, ContractDetail, { number: "778/2026", supplier: "Sem relação", object: "Teste", annualValue: 1, renewsAt: "2027-01-01", text: "Este texto não tem nenhuma cláusula de licenças, preços ou prazos do contrato de demonstração." });
+const outroId = r.data?.contract?.id;
+r = await call("POST", `/contracts/${outroId}/extract`, ContractDetail);
+ok("texto sem relação com a demo não ganha itens inventados (sem IA)", aiOn || r.data?.items?.length === 0, aiOn ? "(IA ligada: o resultado depende dela)" : `(${r.data?.items?.length} itens)`);
+
 /* ================= reset ================= */
 sec("POST /api/demo/reset (volta ao estado da demo)");
 r = await call("POST", "/demo/reset", null);

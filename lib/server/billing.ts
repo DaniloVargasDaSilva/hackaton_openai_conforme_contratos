@@ -64,6 +64,10 @@ async function invalidateCheck(db: Db, contractId: string) {
   await db.query(`UPDATE "Contract" SET "checkedAt" = NULL WHERE id = $1`, [contractId]);
 }
 
+/** Sem itens não há com o que casar a NF e as entregas: um aviso só, em vez de um erro por linha. */
+const NO_ITEMS_MESSAGE =
+  "Este contrato ainda não tem itens. Na aba Contrato, use \"Extrair com IA\" para ler os itens do contrato e depois envie a NF e as entregas.";
+
 /** Texto único da tela: junta o lado faturado e o lado entregue. */
 const joinSources = (invoice: string | null, delivery: string | null) =>
   [invoice, delivery].filter(Boolean).join(" + ") || "—";
@@ -134,6 +138,7 @@ export async function applyNf(
   xml: string,
 ): Promise<{ nf: NfDocument | null; errors: UploadError[] }> {
   const items = await loadItems(db, contractId);
+  if (items.length === 0) return { nf: null, errors: [{ row: null, message: NO_ITEMS_MESSAGE }] };
   return persistNf(db, contractId, items, parseNfXml(xml, items.map((i) => i.item)));
 }
 
@@ -144,6 +149,7 @@ export async function applyNfDocument(
   nf: NfDocument,
 ): Promise<{ nf: NfDocument | null; errors: UploadError[] }> {
   const items = await loadItems(db, contractId);
+  if (items.length === 0) return { nf: null, errors: [{ row: null, message: NO_ITEMS_MESSAGE }] };
   return persistNf(db, contractId, items, analyzeNf(nf, items.map((i) => i.item)));
 }
 
@@ -201,7 +207,8 @@ export async function applyDeliveries(
   csv: string,
 ): Promise<{ errors: UploadError[] }> {
   const items = await loadItems(db, contractId);
-  const { deliveries, errors } = parseDeliveriesCsv(csv, new Set(items.map((i) => i.item.id)));
+  if (items.length === 0) return { errors: [{ row: null, message: NO_ITEMS_MESSAGE }] };
+  const { deliveries, errors } = parseDeliveriesCsv(csv, items.map((i) => i.item));
 
   // Arquivo ilegível (cabeçalho ou vazio) não apaga o que já estava gravado.
   if (deliveries.length === 0 && errors.some((e) => e.row === null)) return { errors };

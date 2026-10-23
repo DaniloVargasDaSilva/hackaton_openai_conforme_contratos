@@ -3,6 +3,7 @@
 import OpenAI from "openai";
 import { z } from "zod";
 import { ContractItem, type Occurrence } from "@/lib/contracts";
+import { resolveItemId } from "./match";
 import type { NfDocument } from "@/lib/contracts-3vias";
 import seed from "@/data/seed-demo.json";
 
@@ -121,10 +122,23 @@ function finalizeItems(raw: AiItem[], contractText: string, seedItems: ContractI
 
 export type ExtractionOutcome = { items: ContractItem[]; source: "ai" | "fallback" };
 
-/** Itens do seed para um contrato. Só o contrato de demo tem itens no seed. */
-export function seedItemsFor(contractId: string): ContractItem[] {
-  if (contractId !== seed.demoContract.id) return [];
-  return seed.expectedItems.map((i) => ContractItem.parse({ ...i, quoteVerified: true }));
+/**
+ * Itens do seed que valem para este contrato. O contrato de demo recebe todos. Qualquer outro (por exemplo,
+ * o texto da demo colado em "Novo contrato") recebe só os itens cujo trecho aparece, palavra por palavra, no
+ * texto dele. Texto que não tem nada a ver com a demo fica sem itens, sem inventar nada.
+ */
+export function seedItemsFor(contractId: string, contractText = ""): ContractItem[] {
+  const all = seed.expectedItems.map((i) => ContractItem.parse({ ...i, quoteVerified: true }));
+  if (contractId === seed.demoContract.id) return all;
+  const haystack = normalize(contractText);
+  // O trecho pode juntar cláusulas vizinhas (5.1 + 5.2), com o número da cláusula no meio do texto:
+  // cada frase dele precisa aparecer no contrato.
+  const present = (quote: string) =>
+    quote
+      .split(/(?<=[.;])\s+/)
+      .filter((part) => part.trim() !== "")
+      .every((part) => haystack.includes(normalize(part)));
+  return all.filter((i) => present(i.quote));
 }
 
 /**
@@ -132,7 +146,7 @@ export function seedItemsFor(contractId: string): ContractItem[] {
  * A demo nunca quebra por causa da IA.
  */
 export async function extractItems(contractId: string, contractText: string): Promise<ExtractionOutcome> {
-  const seedItems = seedItemsFor(contractId);
+  const seedItems = seedItemsFor(contractId, contractText);
   const ai = getAi();
   if (!ai) return { items: seedItems, source: "fallback" };
 
@@ -343,10 +357,9 @@ export async function readNfFromImage(
     throw new NfPhotoError("Não encontrei o número nem as linhas da NF na foto. Tire outra, com a nota inteira à vista.");
   }
 
-  const allowed = new Set(items.map((i) => i.id));
   const nfItems = parsed.items.map((it) => ({
     line: it.line,
-    itemId: it.productCode && allowed.has(it.productCode) ? it.productCode : null,
+    itemId: resolveItemId(items, it.productCode ?? "", it.description),
     description: it.description,
     unit: it.unit,
     qty: it.qty,
