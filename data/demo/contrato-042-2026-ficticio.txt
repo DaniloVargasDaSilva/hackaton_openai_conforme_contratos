@@ -1,0 +1,23 @@
+CONTRATO Nº 042/2026 · FORNECIMENTO DE SOFTWARE E SERVIÇOS DE TI
+Contratante: Rota Sul Logística Ltda. Contratada: NuvemSoft Tecnologia Ltda. Vigência de 01/09/2026 a 31/08/2027.
+
+CLÁUSULA 2 · LICENÇAS E SERVIÇOS EM NUVEM
+2.1 Suíte de produtividade (e-mail e escritório): 120 licenças, a R$ 62,00 por licença por mês.
+2.2 CRM de vendas, plano Pro: 40 licenças, a R$ 180,00 por licença por mês.
+2.3 Backup em nuvem: pacote de 2 TB de armazenamento, a R$ 900,00 por mês.
+2.4 API de IA generativa: franquia de 50 milhões de tokens por mês por R$ 4.000,00; o excedente é cobrado a R$ 90,00 por milhão de tokens, conforme a medição do painel de consumo.
+
+CLÁUSULA 3 · SUPORTE
+3.1 Suporte técnico nível 2, limitado a 40 horas por mês, a R$ 150,00 por hora efetivamente prestada.
+
+CLÁUSULA 4 · IMPLANTAÇÃO E TREINAMENTO
+4.1 Implantação do CRM concluída até 15/10/2026, pelo valor único de R$ 12.000,00.
+4.2 Duas turmas de treinamento realizadas até 31/10/2026, a R$ 2.500,00 por turma.
+4.3 Em caso de atraso na implantação, multa de 0,5% do valor da implantação por dia de atraso, limitada a 10%.
+
+CLÁUSULA 5 · NÍVEL DE SERVIÇO
+5.1 Disponibilidade mínima mensal de 99,5% para os serviços das cláusulas 2.1 a 2.3.
+5.2 Abaixo desse nível, a Contratada concede crédito de 10% da mensalidade desses serviços na fatura do mês seguinte.
+
+CLÁUSULA 6 · PREÇO
+6.1 Os preços deste contrato são fixos até 31/12/2026, sem reajuste.
