@@ -36,7 +36,7 @@ function RenewalChip({ iso }: { iso: string }) {
 function ConferirLink({ c, full }: { c: ContractSummary; full?: boolean }) {
   return (
     <Link
-      href={`/contratos/${c.id}?aba=faturado`}
+      href={`/contratos/${c.id}?aba=contrato`}
       className={`btn btn-pri ${full ? "" : "btn-peq"} no-underline`}
       style={full ? { width: "100%", justifyContent: "center", height: 44 } : undefined}
     >

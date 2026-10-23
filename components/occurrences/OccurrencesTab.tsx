@@ -14,7 +14,7 @@ import { UsageRules } from "./UsageRules";
 function Loading() {
   return (
     <div aria-busy="true" aria-label="Carregando ocorrências">
-      <div className="mb-[22px] grid max-w-[720px] grid-cols-1 gap-3.5 sm:grid-cols-3">
+      <div className="mb-[22px] grid grid-cols-1 gap-3.5 sm:grid-cols-[1fr_1.4fr_1.4fr]">
         {[0, 1, 2].map((i) => (
           <div key={i} className="card">
             <Skeleton style={{ height: 14, width: "50%" }} />
@@ -23,7 +23,7 @@ function Loading() {
           </div>
         ))}
       </div>
-      <div className="max-w-[640px] overflow-hidden rounded-xl border border-filete bg-superficie">
+      <div className="overflow-hidden rounded-xl border border-filete bg-superficie">
         {[0, 1, 2, 3, 4].map((i) => (
           <div key={i} className="border-b border-filete px-4 py-[13px] last:border-b-0">
             <Skeleton style={{ height: 18, width: `${85 - i * 8}%` }} />
@@ -61,8 +61,12 @@ export function OccurrencesTab({ contractId }: { contractId: string }) {
         confirmed={totals.confirmed}
       />
 
-      <div className="max-w-[720px]">
-        {occurrences.length === 0 ? (
+      <div>
+        {occurrences.length === 0 && (lines.data ?? []).length === 0 ? (
+          <EmptyState title="Ainda não há conferência">
+            Envie a NF e o CSV de entregas na aba Faturado × entregue.
+          </EmptyState>
+        ) : occurrences.length === 0 ? (
           // Verde = confere. EmptyState é neutro; retinge só aqui via variáveis do token.
           <div
             style={
@@ -74,7 +78,7 @@ export function OccurrencesTab({ contractId }: { contractId: string }) {
             }
           >
             <EmptyState title="Nada divergente nesta conferência">
-              Envie a NF e o CSV na aba Faturado × entregue
+              Tudo o que foi faturado e entregue confere com o contrato.
             </EmptyState>
           </div>
         ) : (

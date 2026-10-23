@@ -10,6 +10,7 @@ const plexMono = IBM_Plex_Mono({ subsets: ["latin"], weight: ["400", "500", "600
 export const metadata: Metadata = {
   title: "Conforme",
   description: "Governança de contratos de licença de software com fornecedores de TI",
+  icons: { icon: "/brand/favicon.svg" },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
