@@ -15,7 +15,7 @@ import type { CheckResult3, NfDocument, Occurrence3, UploadError } from "@/lib/c
 import { classifyAbc } from "./abc";
 import { applyDeliveries, applyNf, applyNfDocument } from "./billing";
 import { prisma } from "./db";
-import { ApiError } from "./http";
+import { ApiError, describeDbError } from "./http";
 import { extractItems, isAiEnabled, NfPhotoError, readNfFromImage, writeReport } from "./ai";
 import { parseInvoiceCsv } from "./csv";
 import { toConferenceLine, toItem, toLine, toOccurrence, toSummary } from "./mappers";
@@ -332,13 +332,26 @@ export async function generateReport(contractId: string): Promise<Report> {
 
 /* ---------- saúde ---------- */
 
+/**
+ * Saúde da API. `db` = conectou no banco; `schema` = as tabelas existem; `ok` exige os dois.
+ * O SELECT 1 sozinho passa num banco vazio, e aí as rotas dão erro com a saúde dizendo que está tudo bem.
+ */
 export async function health() {
-  let db = false;
+  const ai = isAiEnabled();
+
   try {
     await prisma.$queryRaw`SELECT 1`;
-    db = true;
-  } catch {
-    db = false;
+  } catch (error) {
+    const problem = describeDbError(error);
+    return { ok: false, db: false, schema: false, ai, detail: problem?.message ?? "Não consegui conectar no banco." };
   }
-  return { ok: true as const, db, ai: isAiEnabled() };
+
+  try {
+    await prisma.contract.count();
+  } catch (error) {
+    const problem = describeDbError(error);
+    return { ok: false, db: true, schema: false, ai, detail: problem?.message ?? "O banco conecta, mas a consulta às tabelas falhou." };
+  }
+
+  return { ok: true, db: true, schema: true, ai, detail: null };
 }

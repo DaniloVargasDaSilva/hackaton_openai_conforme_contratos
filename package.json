@@ -9,7 +9,8 @@
     "lint": "next lint",
     "db:push": "prisma db push",
     "db:seed": "prisma db seed",
-    "check:deploy": "tsx scripts/check-deploy.mts"
+    "check:deploy": "tsx scripts/check-deploy.mts",
+    "db:setup": "prisma db push --skip-generate && prisma db seed"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

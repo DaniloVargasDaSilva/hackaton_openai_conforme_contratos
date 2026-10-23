@@ -31,7 +31,7 @@ const ok = (name: string, cond: boolean, extra = "") => {
   console.log(`${cond ? "PASS" : "FAIL"}  ${name}${extra ? `  ${extra}` : ""}`);
 };
 
-type Res = { status: number; data: any; isApiError: boolean; ms: number; error?: string };
+type Res = { status: number; data: any; raw?: any; isApiError: boolean; ms: number; error?: string };
 
 async function call(method: string, path: string, schema: z.ZodTypeAny | null, body?: unknown, quiet = false): Promise<Res> {
   const t0 = Date.now();
@@ -73,9 +73,9 @@ async function call(method: string, path: string, schema: z.ZodTypeAny | null, b
       console.log(`FAIL  ${method} ${path}  fora do schema do front: ${JSON.stringify(p.error.issues.slice(0, 2))}`);
       return { status: r.status, data: json, isApiError: false, ms };
     }
-    return { status: r.status, data: p.data, isApiError: false, ms };
+    return { status: r.status, data: p.data, raw: json, isApiError: false, ms };
   }
-  return { status: r.status, data: json, isApiError: false, ms };
+  return { status: r.status, data: json, raw: json, isApiError: false, ms };
 }
 
 const sec = (t: string) => console.log(`\n## ${t}`);
@@ -96,9 +96,21 @@ if (r.status === 404) {
   console.log("\n/api/health não existe nesse endereço: a URL está errada ou o deploy não inclui a API.");
   process.exit(1);
 }
-if (r.status >= 500 || r.data?.db !== true) {
-  console.log("\nA API respondeu, mas sem banco. Confira DATABASE_URL (use a URL com pooler) e rode uma vez: npx prisma db push && npx tsx prisma/seed.ts");
+const h = r.raw ?? {};
+if (r.status >= 500 || h.db !== true) {
+  console.log(`\n${h.detail ?? "A API respondeu, mas sem conexão com o banco."}`);
+  console.log("Confira DATABASE_URL (use a URL com pooler) e rode uma vez: npm run db:setup");
   process.exit(1);
+}
+// Versões antigas da API não informam `schema`; aí a leitura abaixo é que mostra o problema.
+if (h.schema === undefined) {
+  console.log("INFO  esta versão da API não informa se as tabelas existem; vale o resultado das leituras abaixo");
+} else {
+  ok("tabelas existem (schema: true)", h.schema === true);
+  if (h.schema !== true) {
+    console.log(`\n${h.detail ?? "O banco conecta, mas as tabelas não existem. Rode uma vez, com o DATABASE_URL do deploy: npm run db:setup"}`);
+    process.exit(1);
+  }
 }
 
 sec("Leitura");
