@@ -49,6 +49,7 @@ export function getStore(): Store {
 
 const BILLED: (keyof InvoiceLine)[] = ["billedQty", "billedUnitPrice", "creditApplied", "penaltyApplied"];
 const DELIVERED: (keyof InvoiceLine)[] = ["deliveredAt", "measuredQty", "activeUsers", "measuredPct"];
+const DELIVERED_QTY: Record<string, number> = { crm: 40, backup: 1, suporte: 38 };
 
 // Junta na linha a parte que veio de cada arquivo, a partir das linhas do seed.
 export function mergePart(part: "billed" | "delivered") {
@@ -71,6 +72,11 @@ export function mergePart(part: "billed" | "delivered") {
       s.lines.push(line);
     }
     for (const f of fields) (line as Record<string, unknown>)[f] = src[f];
+    // O CSV de entregas (data/demo/entregas-outubro.csv) também traz qtd entregue
+    // para itens recorrentes; o motor não usa, mas a coluna "Entregue" mostra.
+    if (part === "delivered" && line.measuredQty == null && src.itemId in DELIVERED_QTY) {
+      line.measuredQty = DELIVERED_QTY[src.itemId];
+    }
   }
   s.lines.sort(
     (a, b) =>
