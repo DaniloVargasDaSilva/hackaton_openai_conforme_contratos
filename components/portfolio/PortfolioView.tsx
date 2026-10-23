@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { NewContractPanel } from "./NewContractPanel";
-import { ABC_EXPLICACAO, AbcPareto } from "./AbcPareto";
+import { ABC_EXPLICACAO } from "./AbcPareto";
 import { useContracts } from "@/hooks/queries";
 import { amount, date, inMonths, moneyInt, number, pct } from "@/lib/format";
 import type { ContractSummary } from "@/lib/contracts";
@@ -111,6 +111,9 @@ export function PortfolioView() {
         <p className="mt-1 text-tinta-fraca max-md:hidden">
           Onde está o dinheiro: curva ABC pelo valor anual. Comece pelos contratos A.
         </p>
+        <Link href="/painel" className="mt-1 inline-block text-[14px]">
+          Entenda a curva ABC no Painel →
+        </Link>
         </div>
         <button type="button" className="btn btn-pri shrink-0" onClick={() => setNewOpen(true)}>
           + Novo contrato
@@ -165,8 +168,6 @@ export function PortfolioView() {
               ))}
             </div>
           </div>
-
-          <AbcPareto contracts={data} highlightId="c-042" />
 
           {/* Tabela (desktop) */}
           <div className="overflow-hidden rounded-xl border border-filete max-md:hidden">
