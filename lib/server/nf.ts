@@ -90,9 +90,6 @@ export function parseNfXml(xml: string, items: ContractItem[]): ParsedNf {
       unitPrice: num(prod.vUnCom),
       total: num(prod.vProd),
     };
-    if (!known.has(cProd)) {
-      errors.push({ row: line, message: `Produto "${cProd}" não existe no contrato.` });
-    }
     if ([item.qty, item.unitPrice, item.total].some(Number.isNaN)) {
       errors.push({ row: line, message: "Quantidade ou valor inválido na linha da NF." });
     }
@@ -126,6 +123,26 @@ export function parseNfXml(xml: string, items: ContractItem[]): ParsedNf {
     // O DANFE da demo é sempre fictício (o tipo do front exige o literal true).
     fictitious: true,
   };
+
+  return analyzeNf(nf, items, errors);
+}
+
+/**
+ * Cruza a NF (vinda do XML ou da leitura de uma foto) com os itens do contrato:
+ * calcula o que foi faturado por item e os descontos de crédito de SLA e multa.
+ */
+export function analyzeNf(nf: NfDocument, items: ContractItem[], inheritedErrors: UploadError[] = []): ParsedNf {
+  const known = new Map(items.map((i) => [i.id, i]));
+  const number = nf.number;
+  const discounts = nf.discounts;
+  const nfItems = nf.items;
+  const errors: UploadError[] = [...inheritedErrors];
+
+  for (const it of nfItems) {
+    if (it.itemId === null || !known.has(it.itemId)) {
+      errors.push({ row: it.line, message: `A linha ${it.line} (${it.description || "sem descrição"}) não corresponde a nenhum item do contrato.` });
+    }
+  }
 
   // Faturado por item. Itens de consumo têm duas linhas na NF: a franquia e o excedente.
   const byItem = new Map<string, NfItem[]>();

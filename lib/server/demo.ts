@@ -21,38 +21,28 @@ export type RestoreOptions = {
  */
 export async function restoreDemoSeed(tx: Prisma.TransactionClient, options: RestoreOptions = {}): Promise<void> {
   const { filled = true } = options;
-  const seedContractIds = seed.contracts.map((c) => c.id);
 
-  await tx.review.deleteMany();
-  await tx.occurrence.deleteMany();
-  await tx.invoiceLine.deleteMany();
-  await tx.usageFact.deleteMany();
-  await tx.contractItem.deleteMany();
-  await tx.clause.deleteMany();
-  await tx.contract.deleteMany({ where: { id: { notIn: seedContractIds } } });
+  // As chaves estrangeiras têm ON DELETE CASCADE: apagar os contratos leva junto revisões, ocorrências,
+  // faturas, itens, cláusulas e fatos de uso. Isso também remove os contratos criados por upload.
+  // Poucas consultas de propósito: com o banco em outra região cada uma custa uma ida e volta de rede.
+  await tx.contract.deleteMany();
 
-  for (const contract of seed.contracts) {
-    const isDemo = contract.id === DEMO_CONTRACT_ID;
-    const data = {
-      number: contract.number,
-      supplier: contract.supplier,
-      object: contract.object,
-      annualValue: contract.annualValue,
-      renewsAt: contract.renewsAt,
-      hasDemoData: contract.hasDemoData,
-      text: isDemo ? seed.demoContract.text : null,
-      extractionSource: isDemo ? "seed" : null,
-      extractedAt: null,
-      checkedAt: null,
-      opportunities: Prisma.DbNull,
-      nf: Prisma.DbNull,
-    };
-    await tx.contract.upsert({
-      where: { id: contract.id },
-      create: { id: contract.id, ...data },
-      update: data,
-    });
-  }
+  await tx.contract.createMany({
+    data: seed.contracts.map((contract) => {
+      const isDemo = contract.id === DEMO_CONTRACT_ID;
+      return {
+        id: contract.id,
+        number: contract.number,
+        supplier: contract.supplier,
+        object: contract.object,
+        annualValue: contract.annualValue,
+        renewsAt: contract.renewsAt,
+        hasDemoData: contract.hasDemoData,
+        text: isDemo ? seed.demoContract.text : null,
+        extractionSource: isDemo ? "seed" : null,
+      };
+    }),
+  });
 
   await tx.clause.createMany({
     data: seed.demoContract.clauses.map((c) => ({ contractId: DEMO_CONTRACT_ID, ref: c.ref, text: c.text })),
@@ -78,9 +68,4 @@ export async function restoreDemoSeed(tx: Prisma.TransactionClient, options: Res
     const errors = [...nf.errors, ...deliveries.errors];
     if (errors.length > 0) throw new Error(`Arquivos da demo inválidos: ${JSON.stringify(errors)}`);
   }
-
-  await tx.contract.update({
-    where: { id: DEMO_CONTRACT_ID },
-    data: { extractionSource: "seed" },
-  });
 }

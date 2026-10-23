@@ -1,6 +1,6 @@
 // Dan: regras de negócio que as rotas chamam. As rotas só leem a requisição e devolvem a resposta.
 import { randomUUID } from "node:crypto";
-import type { Clause as DbClause } from "@prisma/client";
+import type { Clause as DbClause, Contract as DbContract } from "@prisma/client";
 import type { z } from "zod";
 import type {
   ContractDetail,
@@ -13,13 +13,16 @@ import type {
 } from "@/lib/contracts";
 import type { CheckResult3, NfDocument, Occurrence3, UploadError } from "@/lib/contracts-3vias";
 import { classifyAbc } from "./abc";
-import { applyDeliveries, applyNf } from "./billing";
+import { applyDeliveries, applyNf, applyNfDocument } from "./billing";
 import { prisma } from "./db";
 import { ApiError } from "./http";
-import { extractItems, writeReport, isAiEnabled } from "./ai";
+import { extractItems, isAiEnabled, NfPhotoError, readNfFromImage, writeReport } from "./ai";
 import { parseInvoiceCsv } from "./csv";
 import { toConferenceLine, toItem, toLine, toOccurrence, toSummary } from "./mappers";
 import { conferir, type UsageFactInput } from "./rules";
+
+/** Banco em outra região: cada consulta custa uma ida e volta de rede, então o padrão de 5 s do Prisma não basta. */
+const TX_OPTIONS = { timeout: 30_000, maxWait: 10_000 };
 
 type CreateContractBody = z.infer<typeof CreateContractBodySchema>;
 type ReviewBody = z.infer<typeof ReviewBodySchema>;
@@ -96,9 +99,9 @@ export async function extractContract(id: string): Promise<ContractDetail> {
     });
     await tx.contract.update({
       where: { id },
-      data: { extractionSource: source, extractedAt: new Date() },
+      data: { extractionSource: source, extractedAt: new Date(), checkedAt: null },
     });
-  });
+  }, TX_OPTIONS);
 
   return getContractDetail(id);
 }
@@ -124,6 +127,7 @@ export async function uploadInvoiceCsv(contractId: string, csv: string) {
 
   await prisma.$transaction(async (tx) => {
     await tx.invoiceLine.deleteMany({ where: { contractId } });
+    await tx.contract.update({ where: { id: contractId }, data: { checkedAt: null } });
     await tx.invoiceLine.createMany({
       data: lines.map((line, index) => ({
         ...line,
@@ -131,7 +135,7 @@ export async function uploadInvoiceCsv(contractId: string, csv: string) {
         row: index + 2,
       })),
     });
-  });
+  }, TX_OPTIONS);
 
   return { lines: await listInvoiceLines(contractId), errors };
 }
@@ -148,8 +152,34 @@ export async function uploadNf(
   xml: string,
 ): Promise<{ nf: NfDocument | null; lines: InvoiceLine[]; errors: UploadError[] }> {
   await findContract(contractId);
-  const { nf, errors } = await prisma.$transaction((tx) => applyNf(tx, contractId, xml));
+  const { nf, errors } = await prisma.$transaction((tx) => applyNf(tx, contractId, xml), TX_OPTIONS);
   return { nf, lines: await listInvoiceLines(contractId), errors };
+}
+
+/**
+ * POST /nf-photo: a IA lê a foto da NF e o resultado é gravado como se fosse o XML.
+ * A chamada à IA fica fora da transação, para não segurar uma conexão do banco esperando a OpenAI.
+ */
+export async function uploadNfPhoto(
+  contractId: string,
+  imageBase64: string,
+  mimeType: string,
+): Promise<{ nf: NfDocument | null; lines: InvoiceLine[]; errors: UploadError[] }> {
+  await findContract(contractId);
+  const itemRows = await prisma.contractItem.findMany({ where: { contractId }, orderBy: { position: "asc" } });
+
+  let nf: NfDocument;
+  try {
+    nf = await readNfFromImage(imageBase64, mimeType, itemRows.map(toItem));
+  } catch (error) {
+    if (error instanceof NfPhotoError) {
+      return { nf: null, lines: await listInvoiceLines(contractId), errors: [{ row: null, message: error.message }] };
+    }
+    throw error;
+  }
+
+  const saved = await prisma.$transaction((tx) => applyNfDocument(tx, contractId, nf), TX_OPTIONS);
+  return { nf: saved.nf, lines: await listInvoiceLines(contractId), errors: saved.errors };
 }
 
 /** POST /deliveries: grava o lado entregue a partir do CSV. Reenviar substitui só o lado entregue. */
@@ -158,12 +188,14 @@ export async function uploadDeliveries(
   csv: string,
 ): Promise<{ lines: InvoiceLine[]; errors: UploadError[] }> {
   await findContract(contractId);
-  const { errors } = await prisma.$transaction((tx) => applyDeliveries(tx, contractId, csv));
+  const { errors } = await prisma.$transaction((tx) => applyDeliveries(tx, contractId, csv), TX_OPTIONS);
   return { lines: await listInvoiceLines(contractId), errors };
 }
 
 export async function patchInvoiceLine(lineId: string, patch: InvoiceLinePatch): Promise<InvoiceLine> {
   const row = await prisma.invoiceLine.update({ where: { id: lineId }, data: patch });
+  // A edição muda os números: a conferência anterior não vale mais.
+  await prisma.contract.update({ where: { id: row.contractId }, data: { checkedAt: null } });
   return toLine(row);
 }
 
@@ -185,8 +217,8 @@ async function loadConferenceInputs(contractId: string) {
 }
 
 /** Lê o estado persistido: ocorrências ativas com revisões, mais as oportunidades da última conferência. */
-async function buildCheckResult(contractId: string): Promise<CheckResult3> {
-  const contract = await findContract(contractId);
+async function buildCheckResult(contractId: string, known?: DbContract): Promise<CheckResult3> {
+  const contract = known ?? (await findContract(contractId));
   const rows = await prisma.occurrence.findMany({
     where: { contractId, active: true },
     include: { reviews: true },
@@ -216,11 +248,11 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
  * Ocorrência que sumiu fica inativa, e as revisões dela continuam no banco.
  */
 export async function runCheck(contractId: string): Promise<CheckResult3> {
-  await findContract(contractId);
-  const inputs = await loadConferenceInputs(contractId);
+  // Existência do contrato e dados da conferência em paralelo: cada consulta é uma ida e volta de rede.
+  const [, inputs] = await Promise.all([findContract(contractId), loadConferenceInputs(contractId)]);
   const { occurrences, opportunities } = conferir(inputs.items, inputs.lines, inputs.usageFacts, inputs.clauses);
 
-  await prisma.$transaction(async (tx) => {
+  const updated = await prisma.$transaction(async (tx) => {
     for (const o of occurrences) {
       const data = {
         itemId: o.itemId,
@@ -242,13 +274,13 @@ export async function runCheck(contractId: string): Promise<CheckResult3> {
       where: { contractId, key: { notIn: occurrences.map((o) => o.key) } },
       data: { active: false },
     });
-    await tx.contract.update({
+    return tx.contract.update({
       where: { id: contractId },
       data: { checkedAt: new Date(), opportunities: opportunities as unknown as object },
     });
-  });
+  }, TX_OPTIONS);
 
-  return buildCheckResult(contractId);
+  return buildCheckResult(contractId, updated);
 }
 
 /** GET /check: devolve a última conferência, ou roda uma se não houver. */

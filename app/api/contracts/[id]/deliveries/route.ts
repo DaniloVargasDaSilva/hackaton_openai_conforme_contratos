@@ -4,6 +4,7 @@ import { uploadDeliveries } from "@/lib/server/service";
 import { ok, parseBody, route } from "@/lib/server/http";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 30;
 
 export const POST = route<{ id: string }>(async (req, { params }) => {
   const { id } = await params;

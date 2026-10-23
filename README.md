@@ -33,11 +33,38 @@ Next.js (App Router) + TypeScript + Tailwind + shadcn/ui · Postgres + Prisma ·
 ## Variáveis de ambiente
 
 ```
-OPENAI_API_KEY=          # só no servidor
-OPENAI_MODEL=            # modelo liberado pela organização
+OPENAI_API_KEY=          # só no servidor; sem ela a IA cai no fallback (seed / template)
+OPENAI_MODEL=            # modelo liberado pela organização; sem ele a IA cai no fallback
 DATABASE_URL=            # Postgres
 NEXT_PUBLIC_USE_MOCKS=1  # 1 = front usa mocks do seed; 0 = API de verdade
+NEXT_PUBLIC_MOCK_ROUTES= # opcional: rotas que ficam no mock mesmo com USE_MOCKS=0 (ex.: nf,deliveries)
+DEMO_RESET_ENABLED=0     # 1 liga POST /api/demo/reset (só durante a gravação)
 ```
+
+`NEXT_PUBLIC_*` entram no bundle **durante o build**: mudou o valor, faça um novo deploy.
+
+## Deploy na Vercel
+
+1. Crie um Postgres em nuvem e use a **URL com pooler** em `DATABASE_URL` (Supabase `:6543` com `?pgbouncer=true`,
+   ou a URL "pooled" do Neon). Na Vercel cada requisição abre uma conexão nova.
+2. Em *Settings → Environment Variables* (production e preview): `DATABASE_URL`, `OPENAI_API_KEY` (sensitive),
+   `OPENAI_MODEL`, `NEXT_PUBLIC_USE_MOCKS=0`, `DEMO_RESET_ENABLED=1`. Não defina `NEXT_PUBLIC_MOCK_ROUTES`
+   (as rotas `nf` e `deliveries` já existem no back).
+3. Em *Settings → Functions*, escolha a **região da função próxima da região do banco**. Cada consulta é uma ida e
+   volta de rede; com o banco longe, cada ação do front fica lenta.
+4. Crie as tabelas e o seed **uma vez**, fora do build (o build só roda `prisma generate`):
+   ```bash
+   DATABASE_URL="<url direta, sem pooler>" npx prisma db push
+   DATABASE_URL="<url direta, sem pooler>" npx tsx prisma/seed.ts
+   ```
+5. Confira o deploy com o teste de fumaça (valida cada resposta com os schemas zod do front):
+   ```bash
+   npm run check:deploy -- https://seu-app.vercel.app            # só leitura
+   npm run check:deploy -- https://seu-app.vercel.app --write    # fluxo completo (precisa de DEMO_RESET_ENABLED=1)
+   ```
+
+`POST /api/demo/reset` volta a demo ao estado inicial (NF 8812 e entregas carregadas).
+Com `?estado=vazio` a fatura fica vazia, para enviar os arquivos durante a gravação.
 
 ## Arquivos
 

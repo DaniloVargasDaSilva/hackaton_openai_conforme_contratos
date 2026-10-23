@@ -3,6 +3,7 @@
 import OpenAI from "openai";
 import { z } from "zod";
 import { ContractItem, type Occurrence } from "@/lib/contracts";
+import type { NfDocument } from "@/lib/contracts-3vias";
 import seed from "@/data/seed-demo.json";
 
 /** Limite da extração e do relatório. Estourou, cai no fallback. */
@@ -212,4 +213,163 @@ export async function writeReport(
     console.error("[ai] relatório falhou, usando template:", error);
     return { text: reportTemplate(contractNumber, supplier, confirmed), source: "template" };
   }
+}
+
+
+/* ---------- NF por foto ---------- */
+
+/** A IA não está configurada ou falhou; a mensagem já serve para mostrar ao usuário. */
+export class NfPhotoError extends Error {}
+
+const AiNfParty = z.object({ name: z.string(), cnpj: z.string(), city: z.string().nullable() });
+const AiNfRead = z.object({
+  number: z.string(),
+  series: z.string(),
+  issuedAt: z.string(),
+  competence: z.string(),
+  issuer: AiNfParty,
+  recipient: AiNfParty,
+  items: z.array(
+    z.object({
+      line: z.number(),
+      productCode: z.string().nullable(),
+      description: z.string(),
+      unit: z.string(),
+      qty: z.number(),
+      unitPrice: z.number(),
+      total: z.number(),
+    }),
+  ),
+  discounts: z.array(z.object({ description: z.string(), amount: z.number() })),
+  notes: z.string().nullable(),
+});
+
+const NF_PARTY_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["name", "cnpj", "city"],
+  properties: { name: { type: "string" }, cnpj: { type: "string" }, city: { type: ["string", "null"] } },
+} as const;
+
+const NF_READ_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["number", "series", "issuedAt", "competence", "issuer", "recipient", "items", "discounts", "notes"],
+  properties: {
+    number: { type: "string" },
+    series: { type: "string" },
+    issuedAt: { type: "string" },
+    competence: { type: "string" },
+    issuer: NF_PARTY_SCHEMA,
+    recipient: NF_PARTY_SCHEMA,
+    items: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["line", "productCode", "description", "unit", "qty", "unitPrice", "total"],
+        properties: {
+          line: { type: "number" },
+          productCode: { type: ["string", "null"] },
+          description: { type: "string" },
+          unit: { type: "string" },
+          qty: { type: "number" },
+          unitPrice: { type: "number" },
+          total: { type: "number" },
+        },
+      },
+    },
+    discounts: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["description", "amount"],
+        properties: { description: { type: "string" }, amount: { type: "number" } },
+      },
+    },
+    notes: { type: ["string", "null"] },
+  },
+} as const;
+
+const NF_READ_INSTRUCTIONS = `Você lê a foto de uma nota fiscal de software e serviços de TI e devolve os dados em JSON.
+Copie números, datas e nomes como aparecem na imagem, sem corrigir nem calcular nada. Datas em YYYY-MM-DD; competência em YYYY-MM.
+Valores em reais, como número (ex.: 1234.5).
+Para cada linha de produto, em "productCode" devolva o id do item do contrato que a linha representa, escolhendo só entre os ids da lista recebida. Se nenhuma servir, use null.
+Em "discounts" liste só descontos escritos na nota (crédito, multa, abatimento). Se não houver, devolva a lista vazia.
+Se algo não estiver legível, use string vazia ou 0. Não invente linhas.`;
+
+const PHOTO_TIMEOUT_MS = 40_000;
+
+/** Lê a foto de uma NF e devolve o documento no mesmo formato do XML. Falha com NfPhotoError. */
+export async function readNfFromImage(
+  imageBase64: string,
+  mimeType: string,
+  items: ContractItem[],
+): Promise<NfDocument> {
+  const ai = getAi();
+  if (!ai) {
+    throw new NfPhotoError("A leitura por foto precisa da IA configurada (OPENAI_API_KEY e OPENAI_MODEL). Envie o XML da NF.");
+  }
+
+  const catalog = items.map((i) => `- ${i.id}: ${i.name}${i.unit ? ` (${i.unit})` : ""}`).join("\n");
+
+  let parsed: z.infer<typeof AiNfRead>;
+  try {
+    const response = await ai.client.responses.create(
+      {
+        model: ai.model,
+        instructions: NF_READ_INSTRUCTIONS,
+        input: [
+          {
+            role: "user",
+            content: [
+              { type: "input_text", text: `Itens do contrato (ids permitidos em productCode):\n${catalog}` },
+              { type: "input_image", image_url: `data:${mimeType};base64,${imageBase64}`, detail: "high" },
+            ],
+          },
+        ],
+        text: { format: { type: "json_schema", name: "nota_fiscal", strict: true, schema: NF_READ_SCHEMA } },
+      },
+      { timeout: PHOTO_TIMEOUT_MS },
+    );
+    parsed = AiNfRead.parse(JSON.parse(response.output_text));
+  } catch (error) {
+    console.error("[ai] leitura da foto da NF falhou:", error);
+    throw new NfPhotoError("Não consegui ler a foto. Tire outra com a nota inteira e bem iluminada, ou envie o XML.");
+  }
+
+  if (!parsed.number || parsed.items.length === 0) {
+    throw new NfPhotoError("Não encontrei o número nem as linhas da NF na foto. Tire outra, com a nota inteira à vista.");
+  }
+
+  const allowed = new Set(items.map((i) => i.id));
+  const nfItems = parsed.items.map((it) => ({
+    line: it.line,
+    itemId: it.productCode && allowed.has(it.productCode) ? it.productCode : null,
+    description: it.description,
+    unit: it.unit,
+    qty: it.qty,
+    unitPrice: it.unitPrice,
+    total: it.total,
+  }));
+  const totalProducts = nfItems.reduce((sum, it) => sum + it.total, 0);
+  const totalDiscounts = parsed.discounts.reduce((sum, d) => sum + d.amount, 0);
+
+  return {
+    number: parsed.number,
+    series: parsed.series,
+    issuedAt: parsed.issuedAt,
+    competence: parsed.competence,
+    issuer: parsed.issuer,
+    recipient: parsed.recipient,
+    items: nfItems,
+    discounts: parsed.discounts,
+    totalProducts,
+    totalDiscounts,
+    total: totalProducts - totalDiscounts,
+    notes: parsed.notes,
+    // O DANFE da demo é sempre fictício (o tipo do front exige o literal true).
+    fictitious: true,
+  };
 }
