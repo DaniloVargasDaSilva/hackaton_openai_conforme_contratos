@@ -54,6 +54,20 @@ export function useUploadNf(contractId: string) {
   });
 }
 
+export function useReadInvoicePhoto(contractId: string) {
+  const qc = useQueryClient();
+  const recheck = useRecheck(contractId);
+  return useMutation({
+    mutationFn: async (photo: { imageBase64: string; mimeType: string }) => {
+      const res = await api.readInvoicePhoto(contractId, photo);
+      if (res.nf) qc.setQueryData(qk.nf(contractId), res.nf);
+      qc.setQueryData(qk.lines(contractId), res.lines);
+      if (res.errors.length === 0 || res.nf) await recheck();
+      return res;
+    },
+  });
+}
+
 export function useUploadDeliveries(contractId: string) {
   const qc = useQueryClient();
   const recheck = useRecheck(contractId);
