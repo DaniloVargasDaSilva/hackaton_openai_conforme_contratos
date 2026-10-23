@@ -33,6 +33,17 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
 const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const num = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 2 });
 
+/** Concordância simples da unidade com a quantidade: "licença" → "licenças", "milhão de tokens" → "milhões de tokens". */
+function pluralize(n: number, unit: string): string {
+  if (n === 1) return unit;
+  const [head, ...rest] = unit.split(" ");
+  const plural = /ão$/.test(head) ? head.replace(/ão$/, "ões") : /[aeiou]$/.test(head) ? `${head}s` : head;
+  return [plural, ...rest].join(" ");
+}
+
+/** "15 licenças", "1 licença", "8 milhões de tokens". */
+const withUnit = (n: number, unit: string) => `${num.format(n)} ${pluralize(n, unit)}`;
+
 const dmy = (date: string) => date.split("-").reverse().join("/");
 
 function daysBetween(from: string, to: string) {
@@ -82,8 +93,8 @@ function occurrence(ctx: Ctx, type: OccurrenceType, data: Draft): DraftOccurrenc
 
 /** Texto do lado entregue de um item recorrente. */
 function deliveredText(line: ConferenceLine, unit: string) {
-  if (line.activeUsers != null) return `${num.format(line.activeUsers)} ${unit} com uso nos últimos 30 dias`;
-  if (line.measuredQty != null) return `${num.format(line.measuredQty)} ${unit} registradas na entrega`;
+  if (line.activeUsers != null) return `${withUnit(line.activeUsers, unit)} com uso nos últimos 30 dias`;
+  if (line.measuredQty != null) return `${withUnit(line.measuredQty, unit)} registradas na entrega`;
   return "Sem registro de entrega para este item";
 }
 
@@ -98,10 +109,10 @@ function checkRecorrente(ctx: Ctx, out: DraftOccurrence[]) {
     const extra = line.billedQty - item.quantity;
     out.push(
       occurrence(ctx, "quantidade", {
-        title: `Cobrança além do contratado em ${item.name}: +${num.format(extra)} ${unit}`,
+        title: `Cobrança além do contratado em ${item.name}: +${withUnit(extra, unit)}`,
         impact: extra * billedPrice,
-        explanation: `A fatura cobra ${num.format(line.billedQty)} ${unit}, e o contrato prevê ${num.format(item.quantity)}. A diferença gera ${brl.format(extra * billedPrice)}.`,
-        invoice: `${num.format(line.billedQty)} ${unit} × ${brl.format(billedPrice)} = ${brl.format(line.billedQty * billedPrice)}`,
+        explanation: `A fatura cobra ${withUnit(line.billedQty, unit)}, e o contrato prevê ${num.format(item.quantity)}. A diferença gera ${brl.format(extra * billedPrice)}.`,
+        invoice: `${withUnit(line.billedQty, unit)} × ${brl.format(billedPrice)} = ${brl.format(line.billedQty * billedPrice)}`,
         delivery: deliveredText(line, unit),
       }),
     );
@@ -115,7 +126,7 @@ function checkRecorrente(ctx: Ctx, out: DraftOccurrence[]) {
         title: `Preço acima do contratado em ${item.name}: ${brl.format(line.billedUnitPrice)} em vez de ${brl.format(item.unitPrice)}`,
         impact: diff * qty,
         explanation: `O preço por ${unit} está fixado no contrato em ${brl.format(item.unitPrice)}, mas a fatura cobra ${brl.format(line.billedUnitPrice)}.`,
-        invoice: `${num.format(qty)} ${unit} × ${brl.format(line.billedUnitPrice)} = ${brl.format(qty * line.billedUnitPrice)}`,
+        invoice: `${withUnit(qty, unit)} × ${brl.format(line.billedUnitPrice)} = ${brl.format(qty * line.billedUnitPrice)}`,
         delivery: deliveredText(line, unit),
       }),
     );
@@ -130,7 +141,7 @@ function checkConsumo(ctx: Ctx, out: DraftOccurrence[]) {
   const franchise = item.franchiseQty ?? 0;
   const overage = item.overageUnitPrice;
   const measuredText =
-    line.measuredQty != null ? `${num.format(line.measuredQty)} ${unit} medidos` : "Sem medição para este item";
+    line.measuredQty != null ? `${withUnit(line.measuredQty, unit)} medidos` : "Sem medição para este item";
 
   if (line.billedQty != null && line.measuredQty != null && overage != null && line.billedQty > line.measuredQty) {
     const billedExcess = Math.max(0, line.billedQty - franchise);
@@ -139,10 +150,10 @@ function checkConsumo(ctx: Ctx, out: DraftOccurrence[]) {
     if (diff > 0) {
       out.push(
         occurrence(ctx, "quantidade", {
-          title: `Excedente faturado acima do medido em ${item.name}: +${num.format(diff)} ${unit}`,
+          title: `Excedente faturado acima do medido em ${item.name}: +${withUnit(diff, unit)}`,
           impact: diff * overage,
-          explanation: `A fatura cobra ${num.format(line.billedQty)} ${unit} e o painel mediu ${num.format(line.measuredQty)}. Com franquia de ${num.format(franchise)}, a diferença de excedente gera ${brl.format(diff * overage)}.`,
-          invoice: `Franquia de ${num.format(franchise)} ${unit} + ${num.format(billedExcess)} ${unit} de excedente × ${brl.format(line.billedUnitPrice ?? overage)}`,
+          explanation: `A fatura cobra ${withUnit(line.billedQty, unit)} e o painel mediu ${num.format(line.measuredQty)}. Com franquia de ${num.format(franchise)}, a diferença de excedente gera ${brl.format(diff * overage)}.`,
+          invoice: `Franquia de ${withUnit(franchise, unit)} + ${withUnit(billedExcess, unit)} de excedente × ${brl.format(line.billedUnitPrice ?? overage)}`,
           delivery: measuredText,
         }),
       );
@@ -210,11 +221,11 @@ function checkEntrega(ctx: Ctx, out: DraftOccurrence[]) {
     const missing = item.quantity - line.measuredQty;
     out.push(
       occurrence(ctx, "quantidade", {
-        title: `Cobrança sem entrega em ${item.name}: ${num.format(missing)} ${unit}`,
+        title: `Cobrança sem entrega em ${item.name}: ${withUnit(missing, unit)}`,
         impact: missing * item.unitPrice,
-        explanation: `O contrato prevê ${num.format(item.quantity)} ${unit}, mas só ${num.format(line.measuredQty)} foram realizadas, e a fatura cobra ${num.format(line.billedQty)}.`,
-        invoice: `${num.format(line.billedQty)} ${unit} × ${brl.format(line.billedUnitPrice ?? item.unitPrice)}`,
-        delivery: `${num.format(line.measuredQty)} de ${num.format(item.quantity)} ${unit} realizadas`,
+        explanation: `O contrato prevê ${withUnit(item.quantity, unit)}, mas só ${num.format(line.measuredQty)} foram realizadas, e a fatura cobra ${num.format(line.billedQty)}.`,
+        invoice: `${withUnit(line.billedQty, unit)} × ${brl.format(line.billedUnitPrice ?? item.unitPrice)}`,
+        delivery: `${num.format(line.measuredQty)} de ${withUnit(item.quantity, unit)} realizadas`,
       }),
     );
   }
@@ -226,10 +237,10 @@ function checkEntrega(ctx: Ctx, out: DraftOccurrence[]) {
         title: `Preço acima do contratado em ${item.name}: ${brl.format(line.billedUnitPrice)} em vez de ${brl.format(item.unitPrice)}`,
         impact: (line.billedUnitPrice - item.unitPrice) * qty,
         explanation: `O valor por ${unit} está fixado em ${brl.format(item.unitPrice)} no contrato, mas a fatura cobra ${brl.format(line.billedUnitPrice)}.`,
-        invoice: `${num.format(qty)} ${unit} × ${brl.format(line.billedUnitPrice)} = ${brl.format(qty * line.billedUnitPrice)}`,
+        invoice: `${withUnit(qty, unit)} × ${brl.format(line.billedUnitPrice)} = ${brl.format(qty * line.billedUnitPrice)}`,
         delivery:
           line.measuredQty != null
-            ? `${num.format(line.measuredQty)} ${unit} realizadas`
+            ? `${withUnit(line.measuredQty, unit)} realizadas`
             : "Sem registro de entrega para este item",
       }),
     );
@@ -284,7 +295,7 @@ function opportunitiesFor(
           id: `${item.id}:sem_uso`,
           itemId: item.id,
           rule: "sem_uso",
-          title: `${num.format(unused)} ${unit} sem uso em ${item.name}`,
+          title: `${withUnit(unused, unit)} sem uso em ${item.name}`,
           monthlyValue: round2(unused * item.unitPrice),
           detail: `Só ${num.format(line.activeUsers)} usaram nos últimos 30 dias, de ${num.format(contracted)} faturados.`,
         });
@@ -296,7 +307,7 @@ function opportunitiesFor(
         id: `${item.id}:desligados`,
         itemId: item.id,
         rule: "desligados",
-        title: `${num.format(fact.terminatedAssigned)} ${unit} atribuídas a pessoas desligadas`,
+        title: `${withUnit(fact.terminatedAssigned, unit)} atribuídas a pessoas desligadas`,
         monthlyValue: round2(fact.terminatedAssigned * item.unitPrice),
         detail: "Constam na lista do RH como desligadas e ainda estão com licença ativa.",
       });
