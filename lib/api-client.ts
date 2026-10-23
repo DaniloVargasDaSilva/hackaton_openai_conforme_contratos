@@ -8,6 +8,7 @@ import {
   type InvoiceLinePatch,
   Report,
   ReviewBody as ReviewBodySchema,
+  CreateContractBody as CreateContractBodySchema,
   ApiError,
 } from "./contracts";
 import {
@@ -28,6 +29,7 @@ import { ApiClientError } from "./api-error";
 import { mocks } from "./mocks";
 
 export type ReviewBody = z.input<typeof ReviewBodySchema>;
+export type CreateContractBody = z.infer<typeof CreateContractBodySchema>;
 
 const USE_MOCKS = process.env.NEXT_PUBLIC_USE_MOCKS === "1";
 // Integração parcial: NEXT_PUBLIC_MOCK_ROUTES=nf,deliveries deixa só essas no mock.
@@ -106,6 +108,11 @@ export function getContracts(): Promise<z.infer<typeof ContractSummary>[]> {
 export function getContract(id: string): Promise<z.infer<typeof ContractDetail>> {
   if (mocked("contract")) return viaMock(ContractDetail, () => mocks.getContract(id), "contract");
   return request(`/api/contracts/${id}`, undefined, ContractDetail);
+}
+
+export function createContract(body: CreateContractBody): Promise<z.infer<typeof ContractDetail>> {
+  if (mocked("contracts")) return viaMock(ContractDetail, () => mocks.createContract(body), "createContract");
+  return request("/api/contracts", json(body), ContractDetail);
 }
 
 export function extractContract(id: string): Promise<z.infer<typeof ContractDetail>> {

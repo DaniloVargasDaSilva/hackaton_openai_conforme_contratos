@@ -19,6 +19,13 @@ export const seedData = seed as unknown as {
   };
 };
 
+export type CreatedContract = {
+  summary: SeedContract;
+  text: string;
+  items: ContractItem[];
+  extraction: { source: "ai" | "fallback" | "seed"; at: string | null };
+};
+
 type Store = {
   nf: NfDocument | null;
   billed: boolean;
@@ -26,6 +33,7 @@ type Store = {
   lines: InvoiceLine[];
   reviews: Record<string, Review[]>; // por key, mais recente primeiro
   checkedAt: string | null;
+  created: CreatedContract[]; // contratos enviados pelo "Novo contrato"
 };
 
 const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v));
@@ -42,6 +50,7 @@ export function getStore(): Store {
       lines: cheio ? clone(seedData.invoiceLines) : [],
       reviews: {},
       checkedAt: null,
+      created: [],
     };
   }
   return store;
@@ -87,7 +96,8 @@ export function mergePart(part: "billed" | "delivered") {
 
 // Curva ABC do mock (no back real isso é do Dan): A até 80% acumulado, B até 95%.
 export function contractsWithAbc(): ContractSummary[] {
-  const sorted = [...seedData.contracts].sort((a, b) => b.annualValue - a.annualValue);
+  const all = [...seedData.contracts, ...getStore().created.map((c) => c.summary)];
+  const sorted = [...all].sort((a, b) => b.annualValue - a.annualValue);
   const total = sorted.reduce((acc, c) => acc + c.annualValue, 0);
   let acc = 0;
   return sorted.map((c) => {
@@ -96,4 +106,8 @@ export function contractsWithAbc(): ContractSummary[] {
     const abcClass = cumulativePct <= 80 ? "A" : cumulativePct <= 95 ? "B" : "C";
     return { ...c, abcClass, cumulativePct };
   });
+}
+
+export function findCreated(id: string): CreatedContract | undefined {
+  return getStore().created.find((c) => c.summary.id === id);
 }

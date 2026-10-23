@@ -24,8 +24,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen">
       <header className="topo sticky top-0 z-30 max-sm:!gap-3 max-sm:!px-4">
         <Link href="/" className="marca no-underline">
-          <i />
-          Conforme
+          {/* eslint-disable-next-line @next/next/no-img-element -- SVG estático da marca */}
+          <img src="/brand/conforme-logo.svg" alt="Conforme" width={92} height={22} />
         </Link>
         <nav className="nav max-sm:!hidden">
           {nav.map((n) => (
