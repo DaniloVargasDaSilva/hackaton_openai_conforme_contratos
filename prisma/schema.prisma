@@ -7,3 +7,116 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+model Contract {
+  id               String    @id
+  number           String
+  supplier         String
+  object           String
+  annualValue      Float
+  renewsAt         String
+  hasDemoData      Boolean   @default(false)
+  text             String?
+  extractionSource String?   // ai | fallback | seed
+  extractedAt      DateTime?
+  checkedAt        DateTime? // última conferência; null = ainda não conferido
+  opportunities    Json?     // oportunidades da última conferência
+  clauses          Clause[]
+  items            ContractItem[]
+  lines            InvoiceLine[]
+  occurrences      Occurrence[]
+  usageFacts       UsageFact[]
+}
+
+model Clause {
+  id         String   @id @default(cuid())
+  contractId String
+  ref        String
+  text       String
+  contract   Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+}
+
+// id é único por contrato ("suite", "crm"…), por isso a chave composta.
+model ContractItem {
+  id               String
+  contractId       String
+  name             String
+  kind             String // recorrente | consumo | entrega | nivel_servico
+  unit             String?
+  quantity         Float?
+  unitPrice        Float?
+  dueDate          String?
+  penaltyPerDayPct Float?
+  penaltyCapPct    Float?
+  franchiseQty     Float?
+  overageUnitPrice Float?
+  slaMinPct        Float?
+  slaCreditPct     Float?
+  slaBaseItemIds   String[]
+  clauseRefs       String[]
+  quote            String
+  quoteVerified    Boolean   @default(false)
+  contract         Contract  @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  @@id([contractId, id])
+}
+
+model InvoiceLine {
+  id              String   @id @default(cuid())
+  contractId      String
+  itemId          String
+  source          String
+  row             Int      @default(0) // linha do CSV de origem, para manter a ordem
+  billedQty       Float?
+  billedUnitPrice Float?
+  deliveredAt     String?
+  measuredQty     Float?
+  activeUsers     Float?
+  measuredPct     Float?
+  creditApplied   Float?
+  penaltyApplied  Float?
+  contract        Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  @@index([contractId])
+}
+
+model Occurrence {
+  id          String   @id @default(cuid())
+  contractId  String
+  key         String // itemId:type, estável entre conferências
+  itemId      String
+  itemName    String
+  type        String
+  title       String
+  impact      Float
+  explanation String
+  evidence    Json
+  active      Boolean  @default(true) // false quando sumiu na última conferência
+  reviews     Review[]
+  contract    Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  @@unique([contractId, key])
+}
+
+model Review {
+  id           String     @id @default(cuid())
+  occurrenceId String
+  status       String // pendente | confirmada | descartada
+  comment      String     @default("")
+  reviewer     String
+  createdAt    DateTime   @default(now())
+  occurrence   Occurrence @relation(fields: [occurrenceId], references: [id], onDelete: Cascade)
+
+  @@index([occurrenceId])
+}
+
+model UsageFact {
+  id                 String   @id @default(cuid())
+  contractId         String
+  itemId             String
+  terminatedAssigned Int      @default(0) // licenças de desligados (lista do RH)
+  overPlanUsers      Int      @default(0) // usuários em plano acima do uso
+  contract           Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  @@unique([contractId, itemId])
+}
