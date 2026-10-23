@@ -66,6 +66,7 @@ model InvoiceLine {
   contractId      String
   itemId          String
   source          String
+  row             Int      @default(0) // linha do CSV de origem, para manter a ordem
   billedQty       Float?
   billedUnitPrice Float?
   deliveredAt     String?
