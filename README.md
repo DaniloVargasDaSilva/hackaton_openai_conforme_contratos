@@ -57,6 +57,10 @@ DEMO_RESET_ENABLED=0     # 1 liga POST /api/demo/reset (só durante a gravação
    DATABASE_URL="<url direta, sem pooler>" npx prisma db push
    DATABASE_URL="<url direta, sem pooler>" npx tsx prisma/seed.ts
    ```
+   Sem acesso ao banco pelo computador (firewall, IPv6)? Gere o SQL das tabelas com `npm run db:sql` e rode-o no
+   *SQL Editor* do Supabase. Depois ligue a RLS nas tabelas (`ALTER TABLE "public"."X" ENABLE ROW LEVEL SECURITY;`),
+   senão a chave pública do Supabase (`sb_publishable_…`) consegue ler e gravar tudo pela API REST. O app acessa o
+   banco pelo Prisma, que não é afetado pela RLS. Os dados da demo vêm do `POST /api/demo/reset`.
 5. Confira o deploy com o teste de fumaça (valida cada resposta com os schemas zod do front):
    ```bash
    npm run check:deploy -- https://seu-app.vercel.app            # só leitura
