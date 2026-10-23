@@ -19,7 +19,7 @@ export function NfDocument({ nf }: { nf: Nf | null }) {
     <article className="folha relative overflow-hidden" aria-label={`Nota fiscal fictícia ${nf.number}`}>
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 grid place-items-center"
+        className="pointer-events-none absolute inset-0 z-0 grid place-items-center"
       >
         <span
           className="font-ui font-semibold text-falta"
@@ -27,7 +27,7 @@ export function NfDocument({ nf }: { nf: Nf | null }) {
             transform: "rotate(-24deg)",
             fontSize: 24,
             letterSpacing: ".1em",
-            opacity: 0.12,
+            opacity: 0.06,
             textAlign: "center",
             lineHeight: 1.5,
             maxWidth: 340,

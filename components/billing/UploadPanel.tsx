@@ -5,6 +5,7 @@ import { FileDrop, idleUpload, type UploadState } from "@/components/common/File
 import { errorMessage } from "@/lib/api-error";
 import type { UploadError } from "@/lib/contracts-3vias";
 import { useUploadDeliveries, useUploadNf } from "@/hooks/mutations";
+import { useLines, useNf } from "@/hooks/queries";
 import { UploadErrors } from "./UploadErrors";
 
 const XML = { "text/xml": [".xml"], "application/xml": [".xml"] };
@@ -12,8 +13,22 @@ const CSV = { "text/csv": [".csv"] };
 
 // Duas dropzones: NF (XML) e entregas (CSV). Cada uma lê o arquivo, envia e mostra o resultado.
 export function UploadPanel({ contractId }: { contractId: string }) {
-  const [nf, setNf] = useState<UploadState>(idleUpload);
-  const [csv, setCsv] = useState<UploadState>(idleUpload);
+  const [nfLocal, setNf] = useState<UploadState>(idleUpload);
+  const [csvLocal, setCsv] = useState<UploadState>(idleUpload);
+  // Ao voltar para a aba, o cartão mostra o que já foi enviado (NF e linhas vêm da API).
+  const nfDoc = useNf(contractId).data;
+  const lines = useLines(contractId).data ?? [];
+  const delivered = lines.filter(
+    (l) => l.deliveredAt != null || l.measuredQty != null || l.activeUsers != null || l.measuredPct != null,
+  ).length;
+  const nf: UploadState =
+    nfLocal.status === "idle" && nfDoc
+      ? { status: "ok", fileName: `NF ${nfDoc.number} enviada`, errors: [], summary: `${nfDoc.items.length} linhas lidas` }
+      : nfLocal;
+  const csv: UploadState =
+    csvLocal.status === "idle" && delivered > 0
+      ? { status: "ok", fileName: "Entregas enviadas", errors: [], summary: `${delivered} registros` }
+      : csvLocal;
   const uploadNf = useUploadNf(contractId);
   const uploadDeliveries = useUploadDeliveries(contractId);
 
