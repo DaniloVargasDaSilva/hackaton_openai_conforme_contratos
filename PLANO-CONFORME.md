@@ -9,6 +9,8 @@ Governança de contratos de licença de software com fornecedores de TI. Empresa
 
 MVP de referência (clicável, com todas as telas e números): o artifact "Plano Hackathon Conforme" que o Felipe mandou no grupo.
 
+> **@Dan, aviso:** nova rota de back obrigatória: `POST /api/demo/reset` (seção 4). Ela volta tudo ao estado inicial do seed, para regravar o vídeo do zero se algo der errado no meio. Entra antes do congelamento das 14:30.
+
 ---
 
 ## 1. O que o produto faz (fluxo da demo)
@@ -248,6 +250,15 @@ export type ApiError = z.infer<typeof ApiError>;
 | GET | `/api/contracts/:id/check` | — | `CheckResult` (última, ou roda se não houver) | Aba Ocorrências |
 | POST | `/api/occurrences/:occId/review` | `ReviewBody` | `Occurrence` | Botões Confirmar/Descartar/Pendente |
 | POST | `/api/contracts/:id/report` | — | `Report` | Aba Relatório |
+| POST | `/api/demo/reset` | — | `{ ok: true, resetAt: string }` | Botão de reset da demo (uso na gravação) |
+
+**Reset da demo (`POST /api/demo/reset`, Dan)**
+- Volta o banco ao estado do `data/seed-demo.json`: apaga `Review` e `Occurrence`, recria `InvoiceLine` com `invoiceCsv`, restaura `ContractItem` do seed (`extractionSource = "seed"`), zera `UsageFact` para os valores do seed.
+- Contratos criados por upload (fora do seed) são removidos. Os 10 do seed voltam ao estado inicial.
+- **Por quê:** se algo der errado no meio da gravação do vídeo, dá para regravar do zero sem subir o deploy de novo nem limpar o banco na mão.
+- **Proteção:** só responde se `DEMO_RESET_ENABLED=1` (env no servidor). Sem a variável, responde `404`. Em produção de demo, deixar ligada só durante a gravação.
+- Resposta de erro segue o padrão `{ error: { code, message } }`.
+- Operação em transação (tudo ou nada). Se falhar, o banco fica como estava.
 
 **Fluxo de chamadas do front**
 
@@ -447,6 +458,7 @@ O CSV da demo está em `seed-demo.json` → `invoiceCsv`. O back valida: `item_i
 | 12:25–13:30 | Telas com mocks: Carteira, Contrato (trecho destacado), Fatura (tabela editável), Ocorrências | Banco + seed, `GET /contracts`, `GET /contracts/:id`, `GET/POST invoice-lines`, `rules.ts` batendo com a tabela da seção 1 |
 | **13:30** | **Integração 1:** `NEXT_PUBLIC_USE_MOCKS=0` nas leituras e no check | `POST /check` e `GET /check` prontos |
 | 13:30–14:15 | Revisão (botões, comentário, histórico), upload do CSV, aba Relatório | `POST /review`, `POST /extract` com IA + fallback, `POST /report` |
+| até 14:15 | Botão "Resetar demo" (chama `POST /api/demo/reset`, só visível com a flag ligada) | **`POST /api/demo/reset`** (tarefa do Dan, ver seção 4) |
 | **14:15** | **Integração 2:** fluxo da demo de ponta a ponta no deploy | |
 | **14:30** | **Congela features.** Só bug. | |
 | 14:30–15:30 | Gravar a tela no roteiro | Narração com TTS da OpenAI |
@@ -466,3 +478,4 @@ O CSV da demo está em `seed-demo.json` → `invoiceCsv`. O back valida: `item_i
 - [ ] Confirmar uma ocorrência, reconferir → ela continua confirmada
 - [ ] Sem `OPENAI_API_KEY`, `POST /extract` responde com `source: "fallback"` e a tela funciona
 - [ ] Erros sempre no formato `{ error: { code, message } }`
+- [ ] `POST /api/demo/reset` com a flag ligada volta o banco ao seed (rodar `POST /check` depois → `atStake = 4644`), e com a flag desligada responde 404
