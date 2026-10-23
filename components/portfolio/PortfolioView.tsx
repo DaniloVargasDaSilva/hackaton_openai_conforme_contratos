@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { NewContractPanel } from "./NewContractPanel";
+import { ABC_EXPLICACAO, AbcPareto } from "./AbcPareto";
 import { useContracts } from "@/hooks/queries";
 import { amount, date, inMonths, moneyInt, number, pct } from "@/lib/format";
 import type { ContractSummary } from "@/lib/contracts";
@@ -158,12 +159,14 @@ export function PortfolioView() {
             <div className="card-val">{moneyInt(total)}</div>
             <div className="mt-3 flex gap-2">
               {byClass.map((b) => (
-                <span key={b.k} className="chip chip-neutro">
+                <span key={b.k} className="chip chip-neutro" title={ABC_EXPLICACAO}>
                   {b.k} · {b.count}
                 </span>
               ))}
             </div>
           </div>
+
+          <AbcPareto contracts={data} highlightId="c-042" />
 
           {/* Tabela (desktop) */}
           <div className="overflow-hidden rounded-xl border border-filete max-md:hidden">
@@ -197,7 +200,7 @@ export function PortfolioView() {
                       <div style={{ fontSize: 13, color: "var(--tinta-fraca)" }}>{c.object}</div>
                     </td>
                     <td>
-                      <Chip>{c.abcClass}</Chip>
+                      <Chip title={ABC_EXPLICACAO}>{c.abcClass}</Chip>
                     </td>
                     <td className="dir num">{valor(c.annualValue)}</td>
                     <td>
