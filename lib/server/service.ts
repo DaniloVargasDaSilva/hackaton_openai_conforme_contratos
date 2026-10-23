@@ -333,6 +333,23 @@ export async function generateReport(contractId: string): Promise<Report> {
 /* ---------- saúde ---------- */
 
 /**
+ * Para onde o app está conectado, sem a senha. Ajuda a ver, no ar, se o DATABASE_URL da Vercel
+ * aponta para o banco certo (o erro mais comum: a variável aponta para outro banco vazio).
+ * Só aparece com DEMO_RESET_ENABLED=1, o modo de demonstração.
+ */
+function connectionTarget() {
+  if (process.env.DEMO_RESET_ENABLED !== "1" || !process.env.DATABASE_URL) return null;
+  try {
+    const url = new URL(process.env.DATABASE_URL);
+    // Supabase: o usuário do pooler é "postgres.<ref>"; a conexão direta tem o host "db.<ref>.supabase.co".
+    const project = url.username.split(".")[1] ?? url.hostname.match(/^db\.([a-z0-9]+)\.supabase\.co$/)?.[1] ?? null;
+    return { host: url.hostname, port: url.port || "5432", database: url.pathname.replace(/^\//, "") || null, project };
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Saúde da API. `db` = conectou no banco; `schema` = as tabelas existem; `ok` exige os dois.
  * O SELECT 1 sozinho passa num banco vazio, e aí as rotas dão erro com a saúde dizendo que está tudo bem.
  */
@@ -343,15 +360,15 @@ export async function health() {
     await prisma.$queryRaw`SELECT 1`;
   } catch (error) {
     const problem = describeDbError(error);
-    return { ok: false, db: false, schema: false, ai, detail: problem?.message ?? "Não consegui conectar no banco." };
+    return { ok: false, db: false, schema: false, ai, target: connectionTarget(), detail: problem?.message ?? "Não consegui conectar no banco." };
   }
 
   try {
     await prisma.contract.count();
   } catch (error) {
     const problem = describeDbError(error);
-    return { ok: false, db: true, schema: false, ai, detail: problem?.message ?? "O banco conecta, mas a consulta às tabelas falhou." };
+    return { ok: false, db: true, schema: false, ai, target: connectionTarget(), detail: problem?.message ?? "O banco conecta, mas a consulta às tabelas falhou." };
   }
 
-  return { ok: true, db: true, schema: true, ai, detail: null };
+  return { ok: true, db: true, schema: true, ai, target: connectionTarget(), detail: null };
 }

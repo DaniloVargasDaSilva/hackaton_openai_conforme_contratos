@@ -97,6 +97,9 @@ if (r.status === 404) {
   process.exit(1);
 }
 const h = r.raw ?? {};
+if (h.target) {
+  console.log(`INFO  o app está conectado em ${h.target.host}:${h.target.port}/${h.target.database ?? "?"}${h.target.project ? `  (projeto Supabase: ${h.target.project})` : ""}`);
+}
 if (r.status >= 500 || h.db !== true) {
   console.log(`\n${h.detail ?? "A API respondeu, mas sem conexão com o banco."}`);
   console.log("Confira DATABASE_URL (use a URL com pooler) e rode uma vez: npm run db:setup");
