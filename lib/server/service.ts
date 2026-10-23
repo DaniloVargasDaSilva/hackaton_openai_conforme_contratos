@@ -1,6 +1,6 @@
 // Dan: regras de negócio que as rotas chamam. As rotas só leem a requisição e devolvem a resposta.
 import { randomUUID } from "node:crypto";
-import type { Clause as DbClause } from "@prisma/client";
+import type { Clause as DbClause, Contract as DbContract } from "@prisma/client";
 import type { z } from "zod";
 import type {
   ContractDetail,
@@ -20,6 +20,9 @@ import { extractItems, writeReport, isAiEnabled } from "./ai";
 import { parseInvoiceCsv } from "./csv";
 import { toConferenceLine, toItem, toLine, toOccurrence, toSummary } from "./mappers";
 import { conferir, type UsageFactInput } from "./rules";
+
+/** Banco em outra região: cada consulta custa uma ida e volta de rede, então o padrão de 5 s do Prisma não basta. */
+const TX_OPTIONS = { timeout: 30_000, maxWait: 10_000 };
 
 type CreateContractBody = z.infer<typeof CreateContractBodySchema>;
 type ReviewBody = z.infer<typeof ReviewBodySchema>;
@@ -98,7 +101,7 @@ export async function extractContract(id: string): Promise<ContractDetail> {
       where: { id },
       data: { extractionSource: source, extractedAt: new Date() },
     });
-  });
+  }, TX_OPTIONS);
 
   return getContractDetail(id);
 }
@@ -131,7 +134,7 @@ export async function uploadInvoiceCsv(contractId: string, csv: string) {
         row: index + 2,
       })),
     });
-  });
+  }, TX_OPTIONS);
 
   return { lines: await listInvoiceLines(contractId), errors };
 }
@@ -148,7 +151,7 @@ export async function uploadNf(
   xml: string,
 ): Promise<{ nf: NfDocument | null; lines: InvoiceLine[]; errors: UploadError[] }> {
   await findContract(contractId);
-  const { nf, errors } = await prisma.$transaction((tx) => applyNf(tx, contractId, xml));
+  const { nf, errors } = await prisma.$transaction((tx) => applyNf(tx, contractId, xml), TX_OPTIONS);
   return { nf, lines: await listInvoiceLines(contractId), errors };
 }
 
@@ -158,7 +161,7 @@ export async function uploadDeliveries(
   csv: string,
 ): Promise<{ lines: InvoiceLine[]; errors: UploadError[] }> {
   await findContract(contractId);
-  const { errors } = await prisma.$transaction((tx) => applyDeliveries(tx, contractId, csv));
+  const { errors } = await prisma.$transaction((tx) => applyDeliveries(tx, contractId, csv), TX_OPTIONS);
   return { lines: await listInvoiceLines(contractId), errors };
 }
 
@@ -185,8 +188,8 @@ async function loadConferenceInputs(contractId: string) {
 }
 
 /** Lê o estado persistido: ocorrências ativas com revisões, mais as oportunidades da última conferência. */
-async function buildCheckResult(contractId: string): Promise<CheckResult3> {
-  const contract = await findContract(contractId);
+async function buildCheckResult(contractId: string, known?: DbContract): Promise<CheckResult3> {
+  const contract = known ?? (await findContract(contractId));
   const rows = await prisma.occurrence.findMany({
     where: { contractId, active: true },
     include: { reviews: true },
@@ -216,11 +219,11 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
  * Ocorrência que sumiu fica inativa, e as revisões dela continuam no banco.
  */
 export async function runCheck(contractId: string): Promise<CheckResult3> {
-  await findContract(contractId);
-  const inputs = await loadConferenceInputs(contractId);
+  // Existência do contrato e dados da conferência em paralelo: cada consulta é uma ida e volta de rede.
+  const [, inputs] = await Promise.all([findContract(contractId), loadConferenceInputs(contractId)]);
   const { occurrences, opportunities } = conferir(inputs.items, inputs.lines, inputs.usageFacts, inputs.clauses);
 
-  await prisma.$transaction(async (tx) => {
+  const updated = await prisma.$transaction(async (tx) => {
     for (const o of occurrences) {
       const data = {
         itemId: o.itemId,
@@ -242,13 +245,13 @@ export async function runCheck(contractId: string): Promise<CheckResult3> {
       where: { contractId, key: { notIn: occurrences.map((o) => o.key) } },
       data: { active: false },
     });
-    await tx.contract.update({
+    return tx.contract.update({
       where: { id: contractId },
       data: { checkedAt: new Date(), opportunities: opportunities as unknown as object },
     });
-  });
+  }, TX_OPTIONS);
 
-  return buildCheckResult(contractId);
+  return buildCheckResult(contractId, updated);
 }
 
 /** GET /check: devolve a última conferência, ou roda uma se não houver. */

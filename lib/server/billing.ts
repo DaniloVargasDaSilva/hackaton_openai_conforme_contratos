@@ -1,5 +1,9 @@
 // Dan: grava os dois lados da fatura (NF em XML e entregas em CSV) na mesma linha por item.
 // Recebe o cliente do banco por parâmetro para rodar dentro de uma transação (upload e reset da demo).
+//
+// Poucas consultas de propósito: com o banco em outra região cada ida e volta custa 100 ms ou mais,
+// e uma transação com dezenas de consultas estoura o tempo. Por isso o estado das linhas é montado
+// em memória e gravado com um deleteMany + um createMany.
 import type { Prisma } from "@prisma/client";
 import type { NfDocument, UploadError } from "@/lib/contracts-3vias";
 import { parseDeliveriesCsv } from "./csv";
@@ -8,39 +12,98 @@ import { parseNfXml } from "./nf";
 
 type Db = Prisma.TransactionClient;
 
-async function loadItems(db: Db, contractId: string) {
-  const rows = await db.contractItem.findMany({ where: { contractId }, orderBy: { position: "asc" } });
-  return rows.map((row) => ({ item: toItem(row), position: row.position }));
-}
+/** Uma linha da fatura com os dois lados. null = o arquivo daquele lado ainda não trouxe o dado. */
+type LineState = {
+  itemId: string;
+  billedQty: number | null;
+  billedUnitPrice: number | null;
+  creditApplied: number | null;
+  penaltyApplied: number | null;
+  invoiceSource: string | null;
+  deliveredAt: string | null;
+  measuredQty: number | null;
+  activeUsers: number | null;
+  measuredPct: number | null;
+  deliverySource: string | null;
+};
 
-/** Texto único da tela: junta o lado faturado e o lado entregue. */
-const joinSources = (invoice: string | null, delivery: string | null) =>
-  [invoice, delivery].filter(Boolean).join(" + ") || "—";
-
-/** Garante a linha do item (uma por contrato e item) e devolve o id. */
-async function ensureLine(db: Db, contractId: string, itemId: string, position: number) {
-  const found = await db.invoiceLine.findFirst({ where: { contractId, itemId } });
-  if (found) return found;
-  return db.invoiceLine.create({
-    data: { contractId, itemId, source: "—", row: position + 1 },
-  });
-}
-
-const BILLED_RESET = {
+const emptyLine = (itemId: string): LineState => ({
+  itemId,
   billedQty: null,
   billedUnitPrice: null,
   creditApplied: null,
   penaltyApplied: null,
   invoiceSource: null,
-} as const;
-
-const DELIVERED_RESET = {
   deliveredAt: null,
   measuredQty: null,
   activeUsers: null,
   measuredPct: null,
   deliverySource: null,
-} as const;
+});
+
+const clearBilled = (l: LineState): LineState => ({
+  ...l,
+  billedQty: null,
+  billedUnitPrice: null,
+  creditApplied: null,
+  penaltyApplied: null,
+  invoiceSource: null,
+});
+
+const clearDelivered = (l: LineState): LineState => ({
+  ...l,
+  deliveredAt: null,
+  measuredQty: null,
+  activeUsers: null,
+  measuredPct: null,
+  deliverySource: null,
+});
+
+/** Texto único da tela: junta o lado faturado e o lado entregue. */
+const joinSources = (invoice: string | null, delivery: string | null) =>
+  [invoice, delivery].filter(Boolean).join(" + ") || "—";
+
+async function loadItems(db: Db, contractId: string) {
+  const rows = await db.contractItem.findMany({ where: { contractId }, orderBy: { position: "asc" } });
+  return rows.map((row) => ({ item: toItem(row), position: row.position }));
+}
+
+/** Linhas que já existem, por item. Se houver duas do mesmo item (CSV antigo), vale a primeira. */
+async function loadStates(db: Db, contractId: string) {
+  const rows = await db.invoiceLine.findMany({ where: { contractId }, orderBy: { row: "asc" } });
+  const states = new Map<string, LineState>();
+  for (const r of rows) {
+    if (states.has(r.itemId)) continue;
+    states.set(r.itemId, {
+      itemId: r.itemId,
+      billedQty: r.billedQty,
+      billedUnitPrice: r.billedUnitPrice,
+      creditApplied: r.creditApplied,
+      penaltyApplied: r.penaltyApplied,
+      invoiceSource: r.invoiceSource,
+      deliveredAt: r.deliveredAt,
+      measuredQty: r.measuredQty,
+      activeUsers: r.activeUsers,
+      measuredPct: r.measuredPct,
+      deliverySource: r.deliverySource,
+    });
+  }
+  return states;
+}
+
+/** Substitui as linhas do contrato pelo estado montado, na ordem dos itens do contrato. */
+async function saveStates(db: Db, contractId: string, states: Map<string, LineState>, positionOf: Map<string, number>) {
+  const ordered = [...states.values()].sort((a, b) => (positionOf.get(a.itemId) ?? 0) - (positionOf.get(b.itemId) ?? 0));
+  await db.invoiceLine.deleteMany({ where: { contractId } });
+  await db.invoiceLine.createMany({
+    data: ordered.map((l) => ({
+      ...l,
+      contractId,
+      source: joinSources(l.invoiceSource, l.deliverySource),
+      row: (positionOf.get(l.itemId) ?? 0) + 1,
+    })),
+  });
+}
 
 /**
  * Lê o XML da NF e grava o lado faturado. Reenviar a NF substitui o lado faturado,
@@ -58,38 +121,34 @@ export async function applyNf(
   if (!parsed.nf) return { nf: null, errors: parsed.errors };
 
   const positionOf = new Map(items.map((i) => [i.item.id, i.position]));
+  const states = new Map<string, LineState>();
+  for (const [itemId, line] of await loadStates(db, contractId)) states.set(itemId, clearBilled(line));
 
-  await db.invoiceLine.updateMany({ where: { contractId }, data: BILLED_RESET });
-  await refreshSources(db, contractId);
+  const lineFor = (itemId: string) => {
+    let line = states.get(itemId);
+    if (!line) {
+      line = emptyLine(itemId);
+      states.set(itemId, line);
+    }
+    return line;
+  };
 
   for (const b of parsed.billed) {
-    const line = await ensureLine(db, contractId, b.itemId, positionOf.get(b.itemId) ?? 0);
-    await db.invoiceLine.update({
-      where: { id: line.id },
-      data: {
-        billedQty: b.billedQty,
-        billedUnitPrice: b.billedUnitPrice,
-        invoiceSource: b.source,
-        source: joinSources(b.source, line.deliverySource),
-      },
-    });
+    const line = lineFor(b.itemId);
+    line.billedQty = b.billedQty;
+    line.billedUnitPrice = b.billedUnitPrice;
+    line.invoiceSource = b.source;
   }
 
   for (const adj of parsed.adjustments) {
-    const line = await ensureLine(db, contractId, adj.itemId, positionOf.get(adj.itemId) ?? 0);
+    const line = lineFor(adj.itemId);
+    if (adj.creditApplied !== undefined) line.creditApplied = adj.creditApplied;
+    if (adj.penaltyApplied !== undefined) line.penaltyApplied = adj.penaltyApplied;
     // Item sem linha de produto na NF (ex.: SLA) herda a origem dos descontos.
-    const invoiceSource = line.invoiceSource ?? adj.source;
-    await db.invoiceLine.update({
-      where: { id: line.id },
-      data: {
-        creditApplied: adj.creditApplied ?? undefined,
-        penaltyApplied: adj.penaltyApplied ?? undefined,
-        invoiceSource,
-        source: joinSources(invoiceSource, line.deliverySource),
-      },
-    });
+    line.invoiceSource = line.invoiceSource ?? adj.source;
   }
 
+  await saveStates(db, contractId, states, positionOf);
   await db.contract.update({ where: { id: contractId }, data: { nf: parsed.nf as unknown as Prisma.InputJsonValue } });
 
   // Erros de linha (produto desconhecido) voltam junto, e a NF segue valendo para o que foi reconhecido.
@@ -112,35 +171,19 @@ export async function applyDeliveries(
   if (deliveries.length === 0 && errors.some((e) => e.row === null)) return { errors };
 
   const positionOf = new Map(items.map((i) => [i.item.id, i.position]));
-
-  await db.invoiceLine.updateMany({ where: { contractId }, data: DELIVERED_RESET });
-  await refreshSources(db, contractId);
+  const states = new Map<string, LineState>();
+  for (const [itemId, line] of await loadStates(db, contractId)) states.set(itemId, clearDelivered(line));
 
   for (const d of deliveries) {
-    const line = await ensureLine(db, contractId, d.itemId, positionOf.get(d.itemId) ?? 0);
-    await db.invoiceLine.update({
-      where: { id: line.id },
-      data: {
-        deliveredAt: d.deliveredAt,
-        measuredQty: d.measuredQty,
-        activeUsers: d.activeUsers,
-        measuredPct: d.measuredPct,
-        deliverySource: d.source,
-        source: joinSources(line.invoiceSource, d.source),
-      },
-    });
+    const line = states.get(d.itemId) ?? emptyLine(d.itemId);
+    line.deliveredAt = d.deliveredAt;
+    line.measuredQty = d.measuredQty;
+    line.activeUsers = d.activeUsers;
+    line.measuredPct = d.measuredPct;
+    line.deliverySource = d.source;
+    states.set(d.itemId, line);
   }
 
+  await saveStates(db, contractId, states, positionOf);
   return { errors };
-}
-
-/** Recalcula o texto único depois de limpar um dos lados. */
-async function refreshSources(db: Db, contractId: string) {
-  const lines = await db.invoiceLine.findMany({ where: { contractId } });
-  for (const line of lines) {
-    await db.invoiceLine.update({
-      where: { id: line.id },
-      data: { source: joinSources(line.invoiceSource, line.deliverySource) },
-    });
-  }
 }
