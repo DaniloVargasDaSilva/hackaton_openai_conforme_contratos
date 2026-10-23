@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- DOCUMENTO FICTÍCIO · SEM VALOR FISCAL. Gerado para a demo do Conforme (hackathon). -->
+<nfeFicticia versao="1.0">
+  <aviso>DOCUMENTO FICTÍCIO · SEM VALOR FISCAL</aviso>
+  <ide>
+    <nNF>8812</nNF>
+    <serie>1</serie>
+    <dhEmi>2026-10-31</dhEmi>
+    <competencia>2026-10</competencia>
+    <natOp>Licenciamento de software e serviços de TI</natOp>
+  </ide>
+  <emit>
+    <CNPJ>00.000.000/0001-00</CNPJ>
+    <xNome>NuvemSoft Tecnologia Ltda.</xNome>
+    <xMun>Porto Alegre</xMun><UF>RS</UF>
+  </emit>
+  <dest>
+    <CNPJ>11.111.111/0001-11</CNPJ>
+    <xNome>Rota Sul Logística Ltda.</xNome>
+    <xMun>Canoas</xMun><UF>RS</UF>
+  </dest>
+  <det nItem="1"><prod><cProd>suite</cProd><xProd>Suíte de produtividade · licença/mês</xProd><uCom>licença</uCom><qCom>135</qCom><vUnCom>62.00</vUnCom><vProd>8370.00</vProd></prod></det>
+  <det nItem="2"><prod><cProd>crm</cProd><xProd>CRM de vendas Pro · licença/mês</xProd><uCom>licença</uCom><qCom>40</qCom><vUnCom>198.00</vUnCom><vProd>7920.00</vProd></prod></det>
+  <det nItem="3"><prod><cProd>backup</cProd><xProd>Backup em nuvem 2 TB</xProd><uCom>pacote</uCom><qCom>1</qCom><vUnCom>900.00</vUnCom><vProd>900.00</vProd></prod></det>
+  <det nItem="4"><prod><cProd>suporte</cProd><xProd>Suporte técnico nível 2</xProd><uCom>hora</uCom><qCom>38</qCom><vUnCom>150.00</vUnCom><vProd>5700.00</vProd></prod></det>
+  <det nItem="5"><prod><cProd>implantacao</cProd><xProd>Implantação do CRM</xProd><uCom>entrega</uCom><qCom>1</qCom><vUnCom>12000.00</vUnCom><vProd>12000.00</vProd></prod></det>
+  <det nItem="6"><prod><cProd>treinamento</cProd><xProd>Treinamento · turmas</xProd><uCom>turma</uCom><qCom>2</qCom><vUnCom>2500.00</vUnCom><vProd>5000.00</vProd></prod></det>
+  <det nItem="7"><prod><cProd>tokens</cProd><xProd>API de IA · franquia 50 mi tokens</xProd><uCom>franquia</uCom><qCom>1</qCom><vUnCom>4000.00</vUnCom><vProd>4000.00</vProd></prod></det>
+  <det nItem="8"><prod><cProd>tokens</cProd><xProd>API de IA · excedente</xProd><uCom>mi tokens</uCom><qCom>16</qCom><vUnCom>90.00</vUnCom><vProd>1440.00</vProd></prod></det>
+  <total><ICMSTot><vProd>45330.00</vProd><vDesc>0.00</vDesc><vNF>45330.00</vNF></ICMSTot></total>
+  <infAdic><infCpl>Contrato 042/2026 · competência 10/2026. DOCUMENTO FICTÍCIO · SEM VALOR FISCAL.</infCpl></infAdic>
+</nfeFicticia>
