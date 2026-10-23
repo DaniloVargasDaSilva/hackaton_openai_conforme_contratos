@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><title>NF 8812 (fictícia)</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&family=IBM+Plex+Mono:wght@400;600&display=block">
+<style>
+:root{--tinta:#1b1d22;--fraca:#5b606b;--filete:#c9ccd3;--fundo:#f4f5f7;--azul:#1c46c4}
+*{box-sizing:border-box}
+html,body{margin:0;background:#fff;color:var(--tinta)}
+body{font-family:"Source Serif 4",Georgia,serif;font-size:10.5pt;line-height:1.5;
+  font-variant-ligatures:none;font-feature-settings:"liga" 0,"clig" 0;
+  font-variant-numeric:tabular-nums;hyphens:none;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.num{font-family:"IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums}
+.marca{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+  pointer-events:none;z-index:0}
+.marca span{transform:rotate(-32deg);font-family:"IBM Plex Mono",monospace;font-weight:600;
+  font-size:34pt;line-height:1.5;letter-spacing:.08em;color:rgba(27,29,34,.085);text-align:center;white-space:nowrap}
+.faixa{border:1px solid var(--tinta);text-align:center;font-family:"IBM Plex Mono",monospace;
+  font-size:8.5pt;font-weight:600;letter-spacing:.12em;padding:4px 0;margin-bottom:14px}
+main{position:relative;z-index:1}
+
+@page{size:A4;margin:14mm 14mm 16mm}
+body{font-size:9.5pt;line-height:1.35}
+.caixa{border:1px solid var(--tinta)}
+.grade{display:grid;border:1px solid var(--tinta);border-bottom:0}
+.grade>div{border-bottom:1px solid var(--tinta);padding:5px 7px}
+.grade>div+div{border-left:1px solid var(--tinta)}
+.rot{display:block;font-size:6.8pt;letter-spacing:.06em;text-transform:uppercase;color:var(--fraca);margin-bottom:1px}
+.topo{grid-template-columns:1.25fr 1fr 1.35fr}
+.topo .emit b{font-size:12pt}
+.danfe{text-align:center}
+.danfe b{display:block;font-size:13pt;letter-spacing:.06em}
+.danfe .num{font-size:10pt}
+.chave{font-size:8.6pt;letter-spacing:.02em;word-spacing:.15em}
+.semcodigo{margin-top:5px;border:1px dashed var(--filete);color:var(--fraca);text-align:center;
+  font-size:7.5pt;padding:7px 2px;letter-spacing:.06em}
+.l2{grid-template-columns:2fr 1.3fr}
+.l3{grid-template-columns:2fr .9fr .65fr .65fr}
+h3{font-size:7.5pt;letter-spacing:.1em;margin:12px 0 4px;font-weight:700}
+table{width:100%;border-collapse:collapse;border:1px solid var(--tinta)}
+th{font-size:6.8pt;letter-spacing:.06em;text-transform:uppercase;color:var(--fraca);font-weight:600;
+  text-align:left;padding:5px 6px;border-bottom:1px solid var(--tinta);background:var(--fundo)}
+td{padding:6px;border-bottom:1px solid var(--filete);vertical-align:top}
+tr:last-child td{border-bottom:0}
+.d{text-align:right;white-space:nowrap}
+.c{text-align:center}
+.totais{grid-template-columns:1fr 1fr 1fr 1.3fr}
+.totais .num{font-size:10.5pt}
+.totais .final{background:var(--fundo)}
+.totais .final .num{font-size:13pt;font-weight:600}
+.adic{min-height:22mm}
+</style></head>
+<body>
+<div class="marca" aria-hidden="true"><span>DOCUMENTO FICTÍCIO<br>SEM VALOR FISCAL</span></div>
+<main>
+<div class="faixa">DOCUMENTO FICTÍCIO · SEM VALOR FISCAL · GERADO PARA DEMONSTRAÇÃO</div>
+
+<div class="grade topo">
+  <div class="emit"><span class="rot">Emitente</span><b>NuvemSoft Tecnologia Ltda.</b><br>
+    CNPJ fictício<br><span class="num">00.000.000/0001-00</span><br>Porto Alegre/RS</div>
+  <div class="danfe"><span class="rot">Documento auxiliar fictício</span><b>DANFE</b>simplificado<br>
+    <span class="num">Nº 8812 · Série 1</span><br>Folha 1/1</div>
+  <div><span class="rot">Chave de acesso (fictícia)</span><span class="num chave">0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000</span>
+    <div class="semcodigo">SEM CÓDIGO DE BARRAS</div></div>
+</div>
+<div class="grade l2">
+  <div><span class="rot">Natureza da operação</span>Licenciamento de software e serviços de TI</div>
+  <div><span class="rot">Protocolo de autorização</span>Inexistente · documento fictício</div>
+</div>
+<div class="grade l3">
+  <div><span class="rot">Destinatário</span><b>Rota Sul Logística Ltda.</b><br>
+    CNPJ <span class="num">11.111.111/0001-11</span> (fictício) · Canoas/RS</div>
+  <div><span class="rot">Data de emissão</span><span class="num">31/10/2026</span></div>
+  <div><span class="rot">Competência</span><span class="num">10/2026</span></div>
+  <div><span class="rot">Contrato</span><span class="num">042/2026</span></div>
+</div>
+
+<h3>DADOS DOS PRODUTOS E SERVIÇOS</h3>
+<table>
+  <thead><tr><th class="c">Nº</th><th>Código</th><th>Descrição</th><th>Un.</th>
+    <th class="d">Qtd.</th><th class="d">Valor unit. (R$)</th><th class="d">Valor total (R$)</th></tr></thead>
+  <tbody>
+<tr><td class="c num">1</td><td class="num">suite</td><td>Suíte de produtividade · licença/mês</td><td>licença</td><td class="d num">135</td><td class="d num">62,00</td><td class="d num">8.370,00</td></tr>
+<tr><td class="c num">2</td><td class="num">crm</td><td>CRM de vendas Pro · licença/mês</td><td>licença</td><td class="d num">40</td><td class="d num">198,00</td><td class="d num">7.920,00</td></tr>
+<tr><td class="c num">3</td><td class="num">backup</td><td>Backup em nuvem 2 TB</td><td>pacote</td><td class="d num">1</td><td class="d num">900,00</td><td class="d num">900,00</td></tr>
+<tr><td class="c num">4</td><td class="num">suporte</td><td>Suporte técnico nível 2</td><td>hora</td><td class="d num">38</td><td class="d num">150,00</td><td class="d num">5.700,00</td></tr>
+<tr><td class="c num">5</td><td class="num">implantacao</td><td>Implantação do CRM</td><td>entrega</td><td class="d num">1</td><td class="d num">12.000,00</td><td class="d num">12.000,00</td></tr>
+<tr><td class="c num">6</td><td class="num">treinamento</td><td>Treinamento · turmas</td><td>turma</td><td class="d num">2</td><td class="d num">2.500,00</td><td class="d num">5.000,00</td></tr>
+<tr><td class="c num">7</td><td class="num">tokens</td><td>API de IA · franquia 50 mi tokens</td><td>franquia</td><td class="d num">1</td><td class="d num">4.000,00</td><td class="d num">4.000,00</td></tr>
+<tr><td class="c num">8</td><td class="num">tokens</td><td>API de IA · excedente</td><td>mi tokens</td><td class="d num">16</td><td class="d num">90,00</td><td class="d num">1.440,00</td></tr>
+  </tbody>
+</table>
+
+<h3>CÁLCULO DO TOTAL</h3>
+<div class="grade totais">
+  <div><span class="rot">Valor dos itens</span><span class="num">R$ 45.330,00</span></div>
+  <div><span class="rot">Descontos</span><span class="num">R$ 0,00</span></div>
+  <div><span class="rot">Impostos</span>Não destacados</div>
+  <div class="final"><span class="rot">Valor total da nota</span><span class="num">R$ 45.330,00</span></div>
+</div>
+
+<h3>DADOS ADICIONAIS</h3>
+<div class="caixa adic" style="padding:6px 7px">Contrato 042/2026 · competência 10/2026. DOCUMENTO FICTÍCIO · SEM VALOR FISCAL.</div>
+</main></body></html>
