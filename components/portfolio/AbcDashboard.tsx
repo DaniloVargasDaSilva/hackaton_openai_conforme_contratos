@@ -1,14 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useCheck, useContract, useContracts, useLines } from "@/hooks/queries";
+import { useCheck, useContract, useContracts, useLines, useMainContractId } from "@/hooks/queries";
 import { inMonths, money, moneyInt, number } from "@/lib/format";
 import type { ContractSummary } from "@/lib/contracts";
 import { Chip } from "@/components/common/Chips";
 import { ErrorState, Skeleton } from "@/components/common/States";
 import { AbcPareto } from "./AbcPareto";
 
-const DEMO = "c-042";
 const TIPOS = [
   { k: "quantidade", label: "Quantidade" },
   { k: "valor", label: "Valor" },
@@ -37,6 +36,7 @@ function Kpi({ rot, val, meta, cor }: { rot: string; val: React.ReactNode; meta?
 // (contratos, check, linhas e itens do 042); nenhuma regra de divergência aqui.
 export function AbcDashboard() {
   const contracts = useContracts();
+  const DEMO = useMainContractId();
   const check = useCheck(DEMO);
   const lines = useLines(DEMO);
   const contract = useContract(DEMO);

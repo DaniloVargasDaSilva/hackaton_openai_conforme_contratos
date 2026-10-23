@@ -17,18 +17,25 @@ export function useContracts() {
 }
 
 export function useContract(id: string) {
-  return useQuery({ queryKey: qk.contract(id), queryFn: () => api.getContract(id) });
+  return useQuery({ queryKey: qk.contract(id), queryFn: () => api.getContract(id), enabled: !!id });
 }
 
 export function useLines(id: string) {
-  return useQuery({ queryKey: qk.lines(id), queryFn: () => api.getLines(id) });
+  return useQuery({ queryKey: qk.lines(id), queryFn: () => api.getLines(id), enabled: !!id });
 }
 
 export function useNf(id: string) {
-  return useQuery({ queryKey: qk.nf(id), queryFn: () => api.getNf(id) });
+  return useQuery({ queryKey: qk.nf(id), queryFn: () => api.getNf(id), enabled: !!id });
 }
 
 // Ocorrências, oportunidades e totais. Badge da aba = totals.pendingCount.
 export function useCheck(id: string) {
-  return useQuery({ queryKey: qk.check(id), queryFn: () => api.getCheck(id) });
+  return useQuery({ queryKey: qk.check(id), queryFn: () => api.getCheck(id), enabled: !!id });
+}
+
+/** Contrato que as telas de atalho abrem: o da demo (c-042) se existir, senão o primeiro da lista, senão "". */
+export function useMainContractId(): string {
+  const { data } = useContracts();
+  if (!data || data.length === 0) return "";
+  return data.find((c) => c.id === "c-042")?.id ?? data[0].id;
 }

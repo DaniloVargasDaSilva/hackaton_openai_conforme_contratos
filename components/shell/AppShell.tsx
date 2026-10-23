@@ -4,22 +4,24 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { usingMocks } from "@/lib/api-client";
 import { useApiStatus } from "@/hooks/useApiStatus";
+import { useMainContractId } from "@/hooks/queries";
 import { ReviewerField } from "./ReviewerField";
 import { ResetDataButton } from "./ResetDataButton";
-
-const DEMO = "/contratos/c-042";
 
 // Barra de topo do design (design/conforme/tokens/base.css → .topo).
 export function AppShell({ children }: { children: React.ReactNode }) {
   const path = usePathname();
   const aba = useSearchParams().get("aba");
   const { down } = useApiStatus();
+  const mainId = useMainContractId();
+  // Sem contrato (banco vazio ou depois de "Resetar dados") os atalhos levam à Carteira, não a uma página 404.
+  const DEMO = mainId ? `/contratos/${mainId}` : "/";
 
   const nav = [
     { href: "/", label: "Carteira", on: path === "/" },
     { href: "/painel", label: "Painel", on: path === "/painel" },
-    { href: `${DEMO}?aba=contrato`, label: "Contratos", on: path.startsWith("/contratos") && aba !== "ocorrencias" },
-    { href: `${DEMO}?aba=ocorrencias`, label: "Ocorrências", on: path.startsWith("/contratos") && aba === "ocorrencias" },
+    { href: mainId ? `${DEMO}?aba=contrato` : DEMO, label: "Contratos", on: path.startsWith("/contratos") && aba !== "ocorrencias" },
+    { href: mainId ? `${DEMO}?aba=ocorrencias` : DEMO, label: "Ocorrências", on: path.startsWith("/contratos") && aba === "ocorrencias" },
   ];
 
   return (
