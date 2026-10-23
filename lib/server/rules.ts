@@ -1,6 +1,8 @@
 // Dan: motor de conferência. Função pura: conferir(items, lines, usageFacts) → { occurrences, opportunities }.
 // Sem banco e sem IA. Quem decide se é divergência é este arquivo, sempre do mesmo jeito.
-import type { Clause, ContractItem, InvoiceLine, Occurrence, Opportunity, OccurrenceType } from "@/lib/contracts";
+import type { Clause, ContractItem, InvoiceLine, Occurrence, Opportunity } from "@/lib/contracts";
+
+type OccurrenceType = Occurrence["type"];
 
 export type UsageFactInput = { itemId: string; terminatedAssigned: number; overPlanUsers: number };
 
