@@ -7,11 +7,13 @@ import { ApiError, ok, route } from "@/lib/server/http";
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
 
-export const POST = route(async () => {
+export const POST = route(async (req) => {
   if (process.env.DEMO_RESET_ENABLED !== "1") {
     throw new ApiError(404, "NOT_FOUND", "Rota não disponível");
   }
 
-  await prisma.$transaction((tx) => restoreDemoSeed(tx), { timeout: 30_000 });
+  // ?estado=vazio deixa a fatura sem arquivos, para enviar NF e entregas durante a gravação.
+  const filled = new URL(req.url).searchParams.get("estado") !== "vazio";
+  await prisma.$transaction((tx) => restoreDemoSeed(tx, { filled }), { timeout: 30_000 });
   return ok({ ok: true, resetAt: new Date().toISOString() });
 });

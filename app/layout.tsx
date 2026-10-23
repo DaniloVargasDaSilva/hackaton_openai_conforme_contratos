@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
-import { IBM_Plex_Mono, Instrument_Sans, Source_Serif_4 } from "next/font/google";
+import { Geist, Source_Serif_4 } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
 
-const instrument = Instrument_Sans({ subsets: ["latin"], weight: ["400", "500", "600"], variable: "--font-instrument" });
+// Fonte da interface e dos números: trocar aqui (ex.: IBM_Plex_Sans, Manrope, Public_Sans) muda o app inteiro.
+const interfaceFont = Geist({ subsets: ["latin"], weight: ["400", "500", "600", "700"], variable: "--font-interface" });
+// Serifada só nos documentos (contrato, NF, relatório).
 const sourceSerif = Source_Serif_4({ subsets: ["latin"], weight: ["400", "600"], variable: "--font-source-serif" });
-const plexMono = IBM_Plex_Mono({ subsets: ["latin"], weight: ["400", "500", "600"], variable: "--font-plex-mono" });
 
 export const metadata: Metadata = {
   title: "Conforme",
@@ -15,7 +16,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-BR" className={`${instrument.variable} ${sourceSerif.variable} ${plexMono.variable}`}>
+    <html lang="pt-BR" className={`${interfaceFont.variable} ${sourceSerif.variable}`}>
       <body>
         <Providers>{children}</Providers>
       </body>

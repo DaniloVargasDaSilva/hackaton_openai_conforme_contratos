@@ -15,9 +15,28 @@ export const INVOICE_CSV_HEADER = [
   "multa_aplicada",
 ] as const;
 
-export type CsvError = { row: number; message: string };
+export const DELIVERIES_CSV_HEADER = [
+  "item_id",
+  "fonte",
+  "data_entrega",
+  "qtd_entregue",
+  "usuarios_ativos",
+  "disponibilidade_pct",
+] as const;
+
+/** `row` é o número da linha no arquivo (cabeçalho = 1); null quando o erro é do arquivo todo. */
+export type CsvError = { row: number | null; message: string };
 
 export type ParsedInvoiceLine = Omit<InvoiceLine, "id" | "contractId">;
+
+export type ParsedDelivery = {
+  itemId: string;
+  source: string;
+  deliveredAt: string | null;
+  measuredQty: number | null;
+  activeUsers: number | null;
+  measuredPct: number | null;
+};
 
 /** Quebra o texto em linhas de campos, respeitando aspas (RFC 4180 simplificado). */
 export function parseCsvRows(text: string): string[][] {
@@ -147,4 +166,64 @@ export function parseInvoiceCsv(text: string, validItemIds: Set<string>) {
   });
 
   return { lines, errors };
+}
+
+/**
+ * CSV de entregas (lado "entregue" da conferência em 3 vias).
+ * Colunas: item_id, fonte, data_entrega, qtd_entregue, usuarios_ativos, disponibilidade_pct.
+ */
+export function parseDeliveriesCsv(text: string, validItemIds: Set<string>) {
+  const rows = parseCsvRows(text);
+  const errors: CsvError[] = [];
+  const deliveries: ParsedDelivery[] = [];
+
+  if (rows.length === 0) {
+    return { deliveries, errors: [{ row: null, message: "CSV vazio" }] };
+  }
+
+  const header = rows[0].map((h) => h.trim());
+  const missing = DELIVERIES_CSV_HEADER.filter((col) => !header.includes(col));
+  if (missing.length > 0) {
+    return {
+      deliveries,
+      errors: [{ row: null, message: `Cabeçalho do CSV sem a coluna ${missing.join(", ")}.` }],
+    };
+  }
+
+  const at = (r: string[], col: (typeof DELIVERIES_CSV_HEADER)[number]) => r[header.indexOf(col)];
+
+  rows.slice(1).forEach((r, index) => {
+    const row = index + 2;
+    const itemId = (at(r, "item_id") ?? "").trim();
+
+    if (!validItemIds.has(itemId)) {
+      errors.push({ row, message: `item_id "${itemId}" não existe no contrato` });
+      return;
+    }
+
+    const measuredQty = toNumber(at(r, "qtd_entregue"));
+    const activeUsers = toNumber(at(r, "usuarios_ativos"));
+    const measuredPct = toNumber(at(r, "disponibilidade_pct"));
+    const deliveredAt = toDate(at(r, "data_entrega"));
+
+    if (measuredQty === "invalid" || activeUsers === "invalid" || measuredPct === "invalid") {
+      errors.push({ row, message: "Campo numérico inválido (qtd_entregue, usuarios_ativos ou disponibilidade_pct)" });
+      return;
+    }
+    if (deliveredAt === "invalid") {
+      errors.push({ row, message: "data_entrega precisa estar em YYYY-MM-DD" });
+      return;
+    }
+
+    deliveries.push({
+      itemId,
+      source: (at(r, "fonte") ?? "").trim() || `linha ${row}`,
+      deliveredAt,
+      measuredQty,
+      activeUsers,
+      measuredPct,
+    });
+  });
+
+  return { deliveries, errors };
 }
