@@ -1,1 +1,204 @@
 @import "tailwindcss";
+
+/*
+ * Conforme — paleta.
+ *
+ * Mesmos nomes que o front usa em app/globals.css: `var(--acento)` aqui é
+ * `var(--acento)` no código, e o mockup vira tela sem retrabalho de cor.
+ *
+ * Regra da folha inteira: COR É SEMÂNTICA, NUNCA DECORAÇÃO. Uma exceção
+ * nomeada: o azul de `--acento`, que é identidade e ação principal, e nunca
+ * estado. Nenhum estado da conferência é azul.
+ *
+ * Contraste medido sobre --superficie (#fff). Texto que carrega informação
+ * fica em ≥ 7:1 (legível em vídeo comprimido); --tinta-tenue (≈ 5,6:1) só
+ * em rótulo e meta, nunca em número.
+ */
+
+:root {
+  /* ---- Fundo e superfície ------------------------------------------- */
+  --canvas: #faf9f7;        /* fundo da página: papel quente, não creme */
+  --superficie: #ffffff;    /* barra, tabela, painel, folha de documento */
+  --superficie-2: #f4f2ee;  /* cabeçalho de tabela, linha em hover */
+
+  /* ---- Tinta: hierarquia por tinta, não por peso --------------------- */
+  --tinta: #14120f;         /* 18,6:1 — texto principal e números */
+  --tinta-fraca: #57524b;   /* 7,6:1  — secundário, descrição */
+  --tinta-tenue: #6b665f;   /* 5,6:1  — rótulo, meta. Nunca número */
+
+  /* ---- Filete: a densidade vem da linha fina, não da sombra ---------- */
+  --filete: #e7e3dc;        /* divisória de tabela e de seção */
+  --filete-forte: #d1ccc3;  /* borda de controle (botão, campo, pílula) */
+
+  /* ---- ACENTO — identidade e ação principal, NUNCA estado ------------
+   * Azul tinta. Aba ativa, botão principal, foco, link, a marca.
+   * 7,7:1 sobre branco (texto branco sobre ele também passa 7,7:1).
+   * Mais escuro e mais frio que um "azul de info", de propósito: não
+   * existe estado "informação" no Conforme, e o azul não pode ser lido
+   * como um. Se algo precisa de atenção, é --alerta; se diverge, --falta.
+   */
+  --acento: #1c46c4;
+  --acento-forte: #15359a;  /* hover/pressionado do botão principal */
+  --acento-leve: #eef2fd;   /* fundo de aba/pílula ligada */
+  --acento-borda: #c9d5f6;
+
+  /* ---- FALTA — divergência: o que foi cobrado e não devia ------------ */
+  --falta: #a3201a;         /* 7,7:1 */
+  --falta-leve: #fdeceb;    /* fundo de linha divergente */
+  --falta-borda: #f2c9c5;
+
+  /* ---- ALERTA — pendente, revisar, atenção -------------------------- */
+  --alerta: #7d4705;        /* 7,4:1 — âmbar escuro, não laranja */
+  --alerta-leve: #fdf3e1;
+  --alerta-borda: #f0d9ad;
+
+  /* ---- DINHEIRO — confere, confirmado, recuperado ------------------- */
+  --dinheiro: #17613a;      /* 7,2:1 */
+  --dinheiro-leve: #e8f3ec;
+  --dinheiro-borda: #c4dfcd;
+
+  /* ---- Marca-texto — trecho de contrato citado como evidência --------
+   * Amarelo-claro com sublinhado: o sublinhado sobrevive à compressão do
+   * vídeo quando o fundo some.
+   */
+  --marca-texto: #fff3a3;
+  --marca-texto-linha: #d9b42c;
+
+  /* ---- Sombra: só no que flutua (folha de documento, painel lateral) - */
+  --sombra-folha: 0 1px 2px rgba(20, 18, 15, .06), 0 8px 24px rgba(20, 18, 15, .06);
+  --sombra-painel: -12px 0 32px rgba(20, 18, 15, .10);
+
+  /* ---- Tipografia --------------------------------------------------- */
+  --fonte-ui: var(--font-instrument), system-ui, sans-serif;
+  --fonte-doc: var(--font-source-serif), Georgia, serif;
+  --fonte-num: var(--font-plex-mono), ui-monospace, monospace;
+}
+
+
+/* Tokens expostos ao Tailwind: bg-canvas, text-tinta, border-filete, text-falta, font-doc… */
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-superficie: var(--superficie);
+  --color-superficie-2: var(--superficie-2);
+  --color-tinta: var(--tinta);
+  --color-tinta-fraca: var(--tinta-fraca);
+  --color-tinta-tenue: var(--tinta-tenue);
+  --color-filete: var(--filete);
+  --color-filete-forte: var(--filete-forte);
+  --color-acento: var(--acento);
+  --color-acento-forte: var(--acento-forte);
+  --color-acento-leve: var(--acento-leve);
+  --color-acento-borda: var(--acento-borda);
+  --color-falta: var(--falta);
+  --color-falta-leve: var(--falta-leve);
+  --color-falta-borda: var(--falta-borda);
+  --color-alerta: var(--alerta);
+  --color-alerta-leve: var(--alerta-leve);
+  --color-alerta-borda: var(--alerta-borda);
+  --color-dinheiro: var(--dinheiro);
+  --color-dinheiro-leve: var(--dinheiro-leve);
+  --color-dinheiro-borda: var(--dinheiro-borda);
+  --color-marca-texto: var(--marca-texto);
+  --color-marca-texto-linha: var(--marca-texto-linha);
+  --font-ui: var(--fonte-ui);
+  --font-doc: var(--fonte-doc);
+  --font-num: var(--fonte-num);
+}
+
+/*
+ * Conforme — peças comuns das telas (vindas de design/conforme/tokens/base.css).
+ * Cada classe mapeia para um componente do front; ver README, "Geometria comum".
+ * Nenhuma cor literal aqui: tudo sai de tokens/cores.css.
+ */
+*{box-sizing:border-box}
+body{margin:0;background:var(--canvas);color:var(--tinta);font-family:var(--fonte-ui);font-size:15px;line-height:1.45;-webkit-font-smoothing:antialiased}
+a{color:var(--acento)}
+.num{font-family:var(--fonte-num);font-variant-numeric:tabular-nums}
+
+/* Mesa de artboards: desktop e celular lado a lado; no celular, o artboard 390 vem primeiro */
+
+/* Barra de topo (padrão de lista de contratos: abas no topo, nada de sidebar) */
+.topo{height:60px;background:var(--superficie);border-bottom:1px solid var(--filete);display:flex;align-items:center;gap:28px;padding:0 28px}
+.marca{display:flex;align-items:center;gap:9px;font-weight:600;font-size:18px;letter-spacing:-.01em;color:var(--tinta)}
+.marca i{width:22px;height:22px;border-radius:6px;background:var(--acento);display:inline-grid;place-items:center}
+.marca i::after{content:"";width:9px;height:5px;border-left:2.5px solid var(--superficie);border-bottom:2.5px solid var(--superficie);transform:rotate(-45deg) translate(1px,-1px)}
+.nav{display:flex;gap:4px;height:100%}
+.nav a{display:flex;align-items:center;padding:0 12px;color:var(--tinta-fraca);text-decoration:none;font-size:15px;border-bottom:2px solid transparent}
+.nav a.on{color:var(--acento);border-bottom-color:var(--acento);font-weight:600}
+.topo-dir{margin-left:auto;display:flex;align-items:center;gap:14px;font-size:14px;color:var(--tinta-fraca)}
+.avatar{width:28px;height:28px;border-radius:50%;background:var(--superficie-2);border:1px solid var(--filete-forte);display:inline-grid;place-items:center;font-size:13px;font-weight:600;color:var(--tinta)}
+
+/* Cabeçalho do contrato + abas de segunda linha */
+.cab{padding:22px 28px 0;background:var(--superficie);border-bottom:1px solid var(--filete)}
+.cab-trilha{font-size:13px;color:var(--tinta-tenue);margin-bottom:6px}
+.cab h1{font-size:24px;font-weight:600;margin:0;letter-spacing:-.01em;display:flex;align-items:center;gap:10px}
+.abas{display:flex;gap:2px;margin-top:16px}
+.abas a{padding:10px 14px;font-size:15px;color:var(--tinta-fraca);text-decoration:none;border-bottom:2px solid transparent;display:flex;align-items:center;gap:8px}
+.abas a.on{color:var(--tinta);font-weight:600;border-bottom-color:var(--acento)}
+.cont{display:inline-grid;place-items:center;min-width:22px;height:20px;padding:0 6px;border-radius:999px;font-size:13px;font-weight:600;background:var(--alerta-leve);color:var(--alerta);border:1px solid var(--alerta-borda)}
+
+/* Botões */
+.btn{display:inline-flex;align-items:center;gap:8px;height:38px;padding:0 16px;border-radius:8px;font:600 14px var(--fonte-ui);border:1px solid var(--filete-forte);background:var(--superficie);color:var(--tinta);white-space:nowrap}
+.btn-pri{background:var(--acento);border-color:var(--acento);color:var(--superficie)}
+.btn-peq{height:32px;padding:0 12px;font-size:13px}
+
+/* Chips: ícone + texto, fundo suave, trio da cor semântica */
+.chip{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 10px;border-radius:999px;font-size:13px;font-weight:600;border:1px solid var(--filete);background:var(--superficie-2);color:var(--tinta-fraca);white-space:nowrap}
+.chip svg{width:14px;height:14px}
+.chip-falta{background:var(--falta-leve);border-color:var(--falta-borda);color:var(--falta)}
+.chip-alerta{background:var(--alerta-leve);border-color:var(--alerta-borda);color:var(--alerta)}
+.chip-ok{background:var(--dinheiro-leve);border-color:var(--dinheiro-borda);color:var(--dinheiro)}
+.chip-neutro{background:var(--superficie);border-color:var(--filete-forte);color:var(--tinta-fraca)}
+
+/* Filtros em pílula ("Status é igual a…") */
+.filtros{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.pilula{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:8px;border:1px solid var(--filete-forte);background:var(--superficie);font-size:14px;color:var(--tinta-fraca)}
+.pilula b{color:var(--tinta);font-weight:600}
+.pilula.on{background:var(--acento-leve);border-color:var(--acento-borda);color:var(--acento)}
+.pilula.on b{color:var(--acento)}
+
+/* Tabela limpa: cabeçalho com ícone, filete fino, número à direita */
+.tab{width:100%;border-collapse:collapse;background:var(--superficie)}
+.tab th{font-size:13px;font-weight:500;color:var(--tinta-fraca);text-align:left;padding:10px 14px;border-bottom:1px solid var(--filete);background:var(--superficie-2);white-space:nowrap}
+.tab th svg{width:14px;height:14px;vertical-align:-2px;margin-right:6px;color:var(--tinta-tenue)}
+.tab td{padding:13px 14px;border-bottom:1px solid var(--filete);font-size:15px;vertical-align:middle}
+.tab .dir{text-align:right}
+.tab tr.div td{background:var(--falta-leve)}
+.tab tr.div td:first-child{box-shadow:inset 3px 0 0 var(--falta)}
+.rodape-tab{font-size:13px;color:var(--tinta-tenue);padding:12px 14px;background:var(--superficie);border-top:1px solid var(--filete)}
+
+/* Cartão de total */
+.card{background:var(--superficie);border:1px solid var(--filete);border-radius:12px;padding:18px 20px}
+.card-rot{font-size:13px;color:var(--tinta-fraca);display:flex;align-items:center;gap:6px}
+.card-val{font-family:var(--fonte-num);font-variant-numeric:tabular-nums;font-size:40px;font-weight:600;letter-spacing:-.02em;line-height:1.1;margin-top:8px}
+.card-meta{font-size:13px;color:var(--tinta-tenue);margin-top:6px}
+
+/* Folha de documento (contrato, DANFE, relatório): serifa sobre papel */
+.folha{background:var(--superficie);box-shadow:var(--sombra-folha);border-radius:4px;font-family:var(--fonte-doc);color:var(--tinta)}
+.mt{background:var(--marca-texto);box-shadow:inset 0 -2px 0 var(--marca-texto-linha);padding:1px 0}
+
+/* Dropzone tracejada */
+.drop{border:1.5px dashed var(--filete-forte);border-radius:12px;background:var(--superficie);padding:16px 18px;display:flex;align-items:center;gap:14px}
+.drop-ico{width:40px;height:40px;border-radius:10px;background:var(--superficie-2);display:grid;place-items:center;flex-shrink:0;color:var(--tinta-fraca)}
+
+/* Barra de uso */
+.barra{height:10px;border-radius:999px;background:var(--superficie-2);border:1px solid var(--filete);overflow:hidden}
+.barra i{display:block;height:100%;background:var(--tinta-fraca)}
+
+/* Celular */
+.topo-cel{height:56px;background:var(--superficie);border-bottom:1px solid var(--filete);display:flex;align-items:center;justify-content:space-between;padding:0 16px}
+.abas-cel{display:flex;gap:6px;overflow-x:auto;padding:12px 16px;background:var(--superficie);border-bottom:1px solid var(--filete)}
+.abas-cel a{flex-shrink:0;height:36px;padding:0 14px;border-radius:999px;border:1px solid var(--filete-forte);display:flex;align-items:center;gap:6px;font-size:14px;color:var(--tinta-fraca);text-decoration:none;background:var(--superficie)}
+.abas-cel a.on{background:var(--acento-leve);border-color:var(--acento-borda);color:var(--acento);font-weight:600}
+
+/* ---- Extras do app (não estavam no mockup) ---- */
+.btn{cursor:pointer;transition:background .15s,border-color .15s}
+.btn:hover{border-color:var(--tinta-tenue)}
+.btn-pri:hover{background:var(--acento-forte);border-color:var(--acento-forte)}
+.btn:disabled{opacity:.55;cursor:not-allowed}
+.btn:focus-visible,.pilula:focus-visible,a:focus-visible,button:focus-visible{outline:2px solid var(--acento);outline-offset:2px}
+.pilula{cursor:pointer}
+.skel{background:linear-gradient(90deg,var(--superficie-2),var(--filete),var(--superficie-2));background-size:200% 100%;animation:skel 1.2s ease-in-out infinite;border-radius:6px}
+@keyframes skel{0%{background-position:100% 0}100%{background-position:-100% 0}}
+.spin{width:16px;height:16px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;display:inline-block;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
