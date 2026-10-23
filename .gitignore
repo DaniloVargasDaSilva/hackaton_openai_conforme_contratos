@@ -1,0 +1,17 @@
+# dependências e build
+node_modules/
+.next/
+out/
+next-env.d.ts
+
+# ambiente
+.env
+.env*.local
+
+# logs
+npm-debug.log*
+
+# editor e SO
+.DS_Store
+.vscode/
+.idea/
