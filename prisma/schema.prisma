@@ -21,6 +21,7 @@ model Contract {
   extractedAt      DateTime?
   checkedAt        DateTime? // última conferência; null = ainda não conferido
   opportunities    Json?     // oportunidades da última conferência
+  nf               Json?     // NF lida do XML (NfDocument), para o DANFE da aba Fatura
   clauses          Clause[]
   items            ContractItem[]
   lines            InvoiceLine[]
@@ -40,6 +41,7 @@ model Clause {
 model ContractItem {
   id               String
   contractId       String
+  position         Int       @default(0) // ordem em que o item aparece no contrato
   name             String
   kind             String // recorrente | consumo | entrega | nivel_servico
   unit             String?
@@ -65,8 +67,10 @@ model InvoiceLine {
   id              String   @id @default(cuid())
   contractId      String
   itemId          String
-  source          String
-  row             Int      @default(0) // linha do CSV de origem, para manter a ordem
+  source          String // texto único para a tela: junta a NF e a entrega
+  invoiceSource   String? // origem do lado faturado, ex.: "NF 8812 · linha 1"
+  deliverySource  String? // origem do lado entregue, ex.: "Painel de consumo"
+  row             Int      @default(0) // ordem de exibição
   billedQty       Float?
   billedUnitPrice Float?
   deliveredAt     String?

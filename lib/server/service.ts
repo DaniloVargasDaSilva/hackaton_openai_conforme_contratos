@@ -1,119 +1,30 @@
 // Dan: regras de negócio que as rotas chamam. As rotas só leem a requisição e devolvem a resposta.
 import { randomUUID } from "node:crypto";
-import type {
-  Clause as DbClause,
-  Contract as DbContract,
-  ContractItem as DbItem,
-  InvoiceLine as DbLine,
-  Occurrence as DbOccurrence,
-  Review as DbReview,
-} from "@prisma/client";
+import type { Clause as DbClause } from "@prisma/client";
 import type { z } from "zod";
 import type {
-  CheckResult,
   ContractDetail,
-  ContractItem,
   ContractSummary,
   CreateContractBody as CreateContractBodySchema,
   InvoiceLine,
   InvoiceLinePatch,
-  Occurrence,
-  Opportunity,
   Report,
   ReviewBody as ReviewBodySchema,
 } from "@/lib/contracts";
-
-type CreateContractBody = z.infer<typeof CreateContractBodySchema>;
-type ReviewBody = z.infer<typeof ReviewBodySchema>;
+import type { CheckResult3, NfDocument, Occurrence3, UploadError } from "@/lib/contracts-3vias";
 import { classifyAbc } from "./abc";
+import { applyDeliveries, applyNf } from "./billing";
 import { prisma } from "./db";
 import { ApiError } from "./http";
 import { extractItems, writeReport, isAiEnabled } from "./ai";
 import { parseInvoiceCsv } from "./csv";
+import { toConferenceLine, toItem, toLine, toOccurrence, toSummary } from "./mappers";
 import { conferir, type UsageFactInput } from "./rules";
 
-/* ---------- mapeamento banco → contrato da API ---------- */
-
-function toLine(row: DbLine): InvoiceLine {
-  return {
-    id: row.id,
-    contractId: row.contractId,
-    itemId: row.itemId,
-    source: row.source,
-    billedQty: row.billedQty,
-    billedUnitPrice: row.billedUnitPrice,
-    deliveredAt: row.deliveredAt,
-    measuredQty: row.measuredQty,
-    activeUsers: row.activeUsers,
-    measuredPct: row.measuredPct,
-    creditApplied: row.creditApplied,
-    penaltyApplied: row.penaltyApplied,
-  };
-}
-
-function toItem(row: DbItem): ContractItem {
-  return {
-    id: row.id,
-    name: row.name,
-    kind: row.kind as ContractItem["kind"],
-    unit: row.unit,
-    quantity: row.quantity,
-    unitPrice: row.unitPrice,
-    dueDate: row.dueDate,
-    penaltyPerDayPct: row.penaltyPerDayPct,
-    penaltyCapPct: row.penaltyCapPct,
-    franchiseQty: row.franchiseQty,
-    overageUnitPrice: row.overageUnitPrice,
-    slaMinPct: row.slaMinPct,
-    slaCreditPct: row.slaCreditPct,
-    slaBaseItemIds: row.slaBaseItemIds,
-    clauseRefs: row.clauseRefs,
-    quote: row.quote,
-    quoteVerified: row.quoteVerified,
-  };
-}
-
-function toOccurrence(row: DbOccurrence & { reviews: DbReview[] }): Occurrence {
-  const reviews = [...row.reviews]
-    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-    .map((r) => ({
-      id: r.id,
-      status: r.status as Occurrence["status"],
-      comment: r.comment,
-      reviewer: r.reviewer,
-      createdAt: r.createdAt.toISOString(),
-    }));
-
-  return {
-    id: row.id,
-    key: row.key,
-    contractId: row.contractId,
-    itemId: row.itemId,
-    itemName: row.itemName,
-    type: row.type as Occurrence["type"],
-    title: row.title,
-    impact: row.impact,
-    explanation: row.explanation,
-    evidence: row.evidence as Occurrence["evidence"],
-    // Status é o da revisão mais recente. Sem revisão, a ocorrência está pendente.
-    status: reviews[0]?.status ?? "pendente",
-    reviews,
-  };
-}
-
-function toSummary(row: DbContract, abc: { abcClass: "A" | "B" | "C"; cumulativePct: number }): ContractSummary {
-  return {
-    id: row.id,
-    number: row.number,
-    supplier: row.supplier,
-    object: row.object,
-    annualValue: row.annualValue,
-    renewsAt: row.renewsAt,
-    hasDemoData: row.hasDemoData,
-    abcClass: abc.abcClass,
-    cumulativePct: abc.cumulativePct,
-  };
-}
+type CreateContractBody = z.infer<typeof CreateContractBodySchema>;
+type ReviewBody = z.infer<typeof ReviewBodySchema>;
+type Opportunity = CheckResult3["opportunities"][number];
+type Occurrence = Occurrence3;
 
 /* ---------- carteira ---------- */
 
@@ -135,7 +46,7 @@ export async function getContractDetail(id: string): Promise<ContractDetail> {
     findContract(id),
     prisma.contract.findMany({ select: { id: true, annualValue: true } }),
     prisma.clause.findMany({ where: { contractId: id }, orderBy: { ref: "asc" } }),
-    prisma.contractItem.findMany({ where: { contractId: id }, orderBy: { id: "asc" } }),
+    prisma.contractItem.findMany({ where: { contractId: id }, orderBy: { position: "asc" } }),
   ]);
   const abc = classifyAbc(all).get(id)!;
 
@@ -181,7 +92,7 @@ export async function extractContract(id: string): Promise<ContractDetail> {
   await prisma.$transaction(async (tx) => {
     await tx.contractItem.deleteMany({ where: { contractId: id } });
     await tx.contractItem.createMany({
-      data: items.map((item) => ({ ...item, contractId: id })),
+      data: items.map((item, position) => ({ ...item, contractId: id, position })),
     });
     await tx.contract.update({
       where: { id },
@@ -225,6 +136,32 @@ export async function uploadInvoiceCsv(contractId: string, csv: string) {
   return { lines: await listInvoiceLines(contractId), errors };
 }
 
+/** NF lida do XML, para o DANFE. null enquanto nenhuma NF foi enviada. */
+export async function getNf(contractId: string): Promise<{ nf: NfDocument | null }> {
+  const contract = await findContract(contractId);
+  return { nf: (contract.nf as NfDocument | null) ?? null };
+}
+
+/** POST /nf: grava o lado faturado a partir do XML. Reenviar substitui só o lado faturado. */
+export async function uploadNf(
+  contractId: string,
+  xml: string,
+): Promise<{ nf: NfDocument | null; lines: InvoiceLine[]; errors: UploadError[] }> {
+  await findContract(contractId);
+  const { nf, errors } = await prisma.$transaction((tx) => applyNf(tx, contractId, xml));
+  return { nf, lines: await listInvoiceLines(contractId), errors };
+}
+
+/** POST /deliveries: grava o lado entregue a partir do CSV. Reenviar substitui só o lado entregue. */
+export async function uploadDeliveries(
+  contractId: string,
+  csv: string,
+): Promise<{ lines: InvoiceLine[]; errors: UploadError[] }> {
+  await findContract(contractId);
+  const { errors } = await prisma.$transaction((tx) => applyDeliveries(tx, contractId, csv));
+  return { lines: await listInvoiceLines(contractId), errors };
+}
+
 export async function patchInvoiceLine(lineId: string, patch: InvoiceLinePatch): Promise<InvoiceLine> {
   const row = await prisma.invoiceLine.update({ where: { id: lineId }, data: patch });
   return toLine(row);
@@ -234,21 +171,21 @@ export async function patchInvoiceLine(lineId: string, patch: InvoiceLinePatch):
 
 async function loadConferenceInputs(contractId: string) {
   const [items, lines, usageFacts, clauses] = await Promise.all([
-    prisma.contractItem.findMany({ where: { contractId } }),
+    prisma.contractItem.findMany({ where: { contractId }, orderBy: { position: "asc" } }),
     prisma.invoiceLine.findMany({ where: { contractId }, orderBy: { row: "asc" } }),
     prisma.usageFact.findMany({ where: { contractId } }),
     prisma.clause.findMany({ where: { contractId } }),
   ]);
   return {
     items: items.map(toItem),
-    lines: lines.map(toLine),
+    lines: lines.map(toConferenceLine),
     usageFacts: usageFacts as UsageFactInput[],
     clauses: clauses.map((c) => ({ ref: c.ref, text: c.text })),
   };
 }
 
 /** Lê o estado persistido: ocorrências ativas com revisões, mais as oportunidades da última conferência. */
-async function buildCheckResult(contractId: string): Promise<CheckResult> {
+async function buildCheckResult(contractId: string): Promise<CheckResult3> {
   const contract = await findContract(contractId);
   const rows = await prisma.occurrence.findMany({
     where: { contractId, active: true },
@@ -278,7 +215,7 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
  * Reconfere o contrato. Recalcula as ocorrências e mantém as revisões pela `key`.
  * Ocorrência que sumiu fica inativa, e as revisões dela continuam no banco.
  */
-export async function runCheck(contractId: string): Promise<CheckResult> {
+export async function runCheck(contractId: string): Promise<CheckResult3> {
   await findContract(contractId);
   const inputs = await loadConferenceInputs(contractId);
   const { occurrences, opportunities } = conferir(inputs.items, inputs.lines, inputs.usageFacts, inputs.clauses);
@@ -315,7 +252,7 @@ export async function runCheck(contractId: string): Promise<CheckResult> {
 }
 
 /** GET /check: devolve a última conferência, ou roda uma se não houver. */
-export async function getCheck(contractId: string): Promise<CheckResult> {
+export async function getCheck(contractId: string): Promise<CheckResult3> {
   const contract = await findContract(contractId);
   if (!contract.checkedAt) return runCheck(contractId);
   return buildCheckResult(contractId);
