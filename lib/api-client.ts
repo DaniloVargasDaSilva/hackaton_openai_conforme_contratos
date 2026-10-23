@@ -31,8 +31,8 @@ import { mocks } from "./mocks";
 export type ReviewBody = z.input<typeof ReviewBodySchema>;
 export type CreateContractBody = z.infer<typeof CreateContractBodySchema>;
 
-// Pitch: mock ligado até o banco da Vercel ter as tabelas. Para voltar à API real, defina NEXT_PUBLIC_FORCE_API=1.
-const USE_MOCKS = process.env.NEXT_PUBLIC_FORCE_API !== "1";
+// Mock só com NEXT_PUBLIC_USE_MOCKS=1 (plano B sem banco). Sem isso o front usa a API de verdade.
+const USE_MOCKS = process.env.NEXT_PUBLIC_USE_MOCKS === "1";
 // Integração parcial: NEXT_PUBLIC_MOCK_ROUTES=nf,deliveries deixa só essas no mock.
 const MOCK_ROUTES = new Set(
   (process.env.NEXT_PUBLIC_MOCK_ROUTES ?? "").split(",").map((s) => s.trim()).filter(Boolean),
