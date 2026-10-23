@@ -74,7 +74,6 @@ export function parseNfXml(xml: string, items: ContractItem[]): ParsedNf {
   if (!number) return fail("O arquivo não parece uma NF-e: falta a tag <nNF>.");
 
   const dets = (deepFind(doc, "det") as unknown[] | undefined) ?? [];
-  const known = new Map(items.map((i) => [i.id, i]));
   const errors: UploadError[] = [];
 
   const nfItems: NfItem[] = dets.map((raw, index) => {
