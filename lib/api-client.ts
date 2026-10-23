@@ -32,9 +32,10 @@ export type ReviewBody = z.input<typeof ReviewBodySchema>;
 export type CreateContractBody = z.infer<typeof CreateContractBodySchema>;
 
 const USE_MOCKS = process.env.NEXT_PUBLIC_USE_MOCKS === "1";
-// Integração parcial: NEXT_PUBLIC_MOCK_ROUTES=nf,deliveries deixa só essas no mock.
+// Integração parcial: NEXT_PUBLIC_MOCK_ROUTES lista as rotas que ficam no mock.
+// Padrão nf,deliveries: o back ainda não tem POST …/nf nem …/deliveries.
 const MOCK_ROUTES = new Set(
-  (process.env.NEXT_PUBLIC_MOCK_ROUTES ?? "").split(",").map((s) => s.trim()).filter(Boolean),
+  (process.env.NEXT_PUBLIC_MOCK_ROUTES ?? "nf,deliveries").split(",").map((s) => s.trim()).filter(Boolean),
 );
 
 export const usingMocks = USE_MOCKS;
