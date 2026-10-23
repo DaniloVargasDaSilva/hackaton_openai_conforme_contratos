@@ -6,7 +6,7 @@ import type { Occurrence3 } from "@/lib/contracts-3vias";
 
 type OccurrenceType = Occurrence3["type"];
 
-// LGPD: o Conforme não cruza a lista de desligados do RH, então não há regra de "licenças de desligados".
+// LGPD: o Conforme não cruza listas de pessoas do RH; as regras de uso só leem contagens agregadas.
 // A coluna terminatedAssigned existe no banco (fica 0) e é ignorada aqui.
 export type UsageFactInput = { itemId: string; overPlanUsers: number };
 

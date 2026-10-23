@@ -19,10 +19,10 @@ export function TotalsBar({
         <div className="card-val">{count}</div>
         <div className="card-meta">{pending === 1 ? "1 pendente" : `${pending} pendentes`}</div>
       </div>
-      <div className="card">
-        <div className="card-rot">Em jogo</div>
+      <div className="card" style={{ borderLeft: "3px solid var(--falta)" }}>
+        <div className="card-rot">Valores a revisar</div>
         <div className="card-val text-falta">{money(atStake)}</div>
-        <div className="card-meta">soma das ocorrências</div>
+        <div className="card-meta">soma das ocorrências · sujeito à validação</div>
       </div>
       <div className="card">
         <div className="card-rot">Confirmado</div>

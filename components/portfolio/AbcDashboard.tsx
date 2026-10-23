@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCheck, useContract, useContracts, useLines } from "@/hooks/queries";
-import { inMonths, money, moneyInt, number } from "@/lib/format";
+import { inMonths, money, moneyInt, number, pct } from "@/lib/format";
 import type { ContractSummary } from "@/lib/contracts";
 import { Chip } from "@/components/common/Chips";
 import { ErrorState, Skeleton } from "@/components/common/States";
@@ -21,9 +21,21 @@ function mesesAte(iso: string, hoje = new Date()) {
   return (y - hoje.getFullYear()) * 12 + (m - 1 - hoje.getMonth());
 }
 
-function Kpi({ rot, val, meta, cor }: { rot: string; val: React.ReactNode; meta?: React.ReactNode; cor?: string }) {
+function Kpi({
+  rot,
+  val,
+  meta,
+  cor,
+  borda,
+}: {
+  rot: string;
+  val: React.ReactNode;
+  meta?: React.ReactNode;
+  cor?: string;
+  borda?: string;
+}) {
   return (
-    <div className="card">
+    <div className="card" style={borda ? { borderLeft: `3px solid ${borda}` } : undefined}>
       <div className="card-rot">{rot}</div>
       <div className="card-val" style={cor ? { color: cor } : undefined}>
         {val}
@@ -74,6 +86,7 @@ export function AbcDashboard() {
   const faturadas = suiteLine?.billedQty ?? null;
   const emUso = suiteLine?.activeUsers ?? null;
   const temLicencas = contratadas != null && faturadas != null && emUso != null;
+  const semUsoQtd = temLicencas ? contratadas! - emUso! : 0;
 
   const porTipo = TIPOS.map((t) => {
     const list = (cr?.occurrences ?? []).filter((o) => o.type === t.k);
@@ -101,24 +114,50 @@ export function AbcDashboard() {
       </div>
 
       {/* KPIs */}
-      <div className="mb-5 grid grid-cols-1 gap-3.5 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mb-5 grid grid-cols-1 gap-3.5 sm:grid-cols-2">
         <Kpi rot="Gasto anual em software" val={contracts.isLoading ? "—" : moneyInt(total)} meta={`${data.length} contratos`} />
-        <Kpi
-          rot={`Em jogo no ${demo?.number ?? "042/2026"}`}
-          val={temConferencia ? money(cr!.totals.atStake) : "—"}
-          cor="var(--falta)"
-          meta={temConferencia ? `${cr!.occurrences.length} ocorrências` : "envie a NF e as entregas para conferir"}
-        />
-        <Kpi
-          rot="Licenças pagas sem uso"
-          val={semUso.length ? `${money(semUsoMes)}` : "—"}
-          cor="var(--alerta)"
-          meta={semUso.length ? "por mês · contratadas sem uso" : "aparece depois da conferência"}
-        />
         <Kpi
           rot="Renovação mais próxima"
           val={proxima ? inMonths(proxima.renewsAt) : "—"}
           meta={proxima ? `${proxima.supplier} · ${proxima.number}` : undefined}
+        />
+      </div>
+
+      {/* Valores a revisar e oportunidade de economia: naturezas diferentes, nunca somados nem no mesmo card */}
+      <div className="mb-5 grid grid-cols-1 gap-5 md:grid-cols-2">
+        <Kpi
+          rot={`Valores a revisar · ${demo?.number ?? "042/2026"}`}
+          val={temConferencia ? money(cr!.totals.atStake) : "—"}
+          cor="var(--falta)"
+          borda="var(--falta)"
+          meta={
+            temConferencia
+              ? `${cr!.occurrences.length} ocorrências · sujeito à validação`
+              : "envie a NF e as entregas para conferir"
+          }
+        />
+        <Kpi
+          rot="Oportunidade de economia"
+          val={
+            semUso.length ? (
+              <>
+                {money(semUsoMes)}
+                <span className="text-[0.45em] font-normal text-tinta-fraca">/mês</span>
+              </>
+            ) : (
+              "—"
+            )
+          }
+          cor="var(--acento)"
+          borda="var(--acento)"
+          meta={
+            semUso.length && temLicencas && semUsoQtd > 0
+              ? `${semUsoQtd} de ${contratadas} licenças da suíte sem uso (${pct(Math.round((semUsoQtd / contratadas!) * 1000) / 10)})` +
+                (suiteItem?.unitPrice != null ? ` · ${semUsoQtd} × ${money(suiteItem.unitPrice)}` : "")
+              : semUso.length
+                ? "por mês · licenças contratadas sem uso"
+                : "aparece depois da conferência"
+          }
         />
       </div>
 

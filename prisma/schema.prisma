@@ -118,7 +118,7 @@ model UsageFact {
   id                 String   @id @default(cuid())
   contractId         String
   itemId             String
-  terminatedAssigned Int      @default(0) // licenças de desligados (lista do RH)
+  terminatedAssigned Int      @default(0) // sem uso (LGPD): fica 0, o motor ignora
   overPlanUsers      Int      @default(0) // usuários em plano acima do uso
   contract           Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
 
