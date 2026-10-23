@@ -35,13 +35,22 @@ Next.js (App Router) + TypeScript + Tailwind + shadcn/ui · Postgres + Prisma ·
 ```
 OPENAI_API_KEY=          # só no servidor; sem ela a IA cai no fallback (seed / template)
 OPENAI_MODEL=            # modelo liberado pela organização; sem ele a IA cai no fallback
-DATABASE_URL=            # Postgres
+DATABASE_URL=            # Postgres (use a URL com pooler na Vercel)
+SUPABASE_DB_PASSWORD=    # opcional: liga a conexão FIXA no código (projeto Supabase) e ignora o DATABASE_URL
 NEXT_PUBLIC_USE_MOCKS=1  # 1 = front usa mocks do seed; 0 = API de verdade
 NEXT_PUBLIC_MOCK_ROUTES= # opcional: rotas que ficam no mock mesmo com USE_MOCKS=0 (ex.: nf,deliveries)
-DEMO_RESET_ENABLED=0     # 1 liga POST /api/demo/reset (só durante a gravação)
+DEMO_RESET_ENABLED=0     # 1 liga POST /api/demo/reset e mostra o destino da conexão no /api/health
 ```
 
 `NEXT_PUBLIC_*` entram no bundle **durante o build**: mudou o valor, faça um novo deploy.
+
+O back fala com o Postgres em **SQL direto** (driver `pg`, `lib/server/db.ts`), sem Prisma em tempo de execução.
+O `prisma/schema.prisma` continua sendo a fonte das tabelas (`npm run db:push`, `npm run db:sql`).
+
+**Conexão fixa:** `lib/server/db.ts` traz o projeto Supabase, o usuário, a porta e dois hosts do pooler já no
+código. Com `SUPABASE_DB_PASSWORD` definida, o app usa essa conexão e ignora o `DATABASE_URL` (que na Vercel
+estava apontando para outro banco). Não escreva a senha no arquivo: este repositório é público.
+`DB_USE_ENV=1` volta a usar o `DATABASE_URL` (é o que os testes locais fazem).
 
 ## Deploy na Vercel
 
@@ -52,7 +61,7 @@ DEMO_RESET_ENABLED=0     # 1 liga POST /api/demo/reset (só durante a gravação
    (as rotas `nf` e `deliveries` já existem no back).
 3. Em *Settings → Functions*, escolha a **região da função próxima da região do banco**. Cada consulta é uma ida e
    volta de rede; com o banco longe, cada ação do front fica lenta.
-4. Crie as tabelas e o seed **uma vez**, fora do build (o build só roda `prisma generate`):
+4. Crie as tabelas e o seed **uma vez**, fora do build (o build só roda `next build`):
    ```bash
    DATABASE_URL="<url direta, sem pooler>" npx prisma db push
    DATABASE_URL="<url direta, sem pooler>" npx tsx prisma/seed.ts

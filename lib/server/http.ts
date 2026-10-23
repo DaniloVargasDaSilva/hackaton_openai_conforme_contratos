@@ -1,7 +1,7 @@
 // Dan: respostas de erro no formato { error: { code, message } } e wrapper das rotas.
 import { NextResponse } from "next/server";
-import { Prisma } from "@prisma/client";
 import { ZodError } from "zod";
+import { DbConfigError } from "./db";
 
 export class ApiError extends Error {
   constructor(
@@ -18,42 +18,54 @@ type Ctx<P extends Params> = { params: Promise<P> };
 
 export type DbProblem = { status: number; code: string; message: string };
 
-const FIX_TABLES = "Rode uma vez, com o DATABASE_URL do deploy: npm run db:setup (ou npx prisma db push && npx tsx prisma/seed.ts).";
+const FIX_TABLES = "Rode uma vez, com o DATABASE_URL do deploy: npm run db:setup (ou npx prisma db push --skip-generate && npx tsx prisma/seed.ts).";
+
+const NETWORK_CODES = new Set(["ECONNREFUSED", "ENOTFOUND", "EAI_AGAIN", "ETIMEDOUT", "ECONNRESET", "EHOSTUNREACH", "ENETUNREACH"]);
 
 /**
- * Traduz erro do Prisma em algo que o usuário consegue agir. Sem isso a rota responde 500 genérico
+ * Traduz erro de banco em algo que o usuário consegue agir. Sem isso a rota responde 500 genérico
  * e o motivo real (tabela ausente, senha errada, pooler mal configurado) só aparece no log da Vercel.
  * Devolve null quando o erro não é de banco.
  */
 export function describeDbError(error: unknown): DbProblem | null {
+  if (error instanceof DbConfigError) {
+    return { status: 503, code: "DB_SEM_CONEXAO", message: `${error.message}. Confira se DATABASE_URL está definida e correta no deploy.` };
+  }
+
   const text = error instanceof Error ? error.message : String(error);
+  const code = (error as { code?: unknown } | null)?.code;
+  const sqlstate = typeof code === "string" ? code : "";
 
-  if (error instanceof Prisma.PrismaClientKnownRequestError) {
-    switch (error.code) {
-      case "P2021":
-        return { status: 503, code: "DB_SEM_TABELAS", message: `O banco está conectado, mas não tem as tabelas do Conforme. ${FIX_TABLES}` };
-      case "P2022":
-        return { status: 503, code: "DB_SCHEMA_DESATUALIZADO", message: `O banco tem tabelas de uma versão antiga (falta uma coluna). Rode: npx prisma db push, com o DATABASE_URL do deploy.` };
-      case "P1000":
-      case "P1010":
-        return { status: 503, code: "DB_ACESSO_NEGADO", message: "O banco recusou o usuário ou a senha do DATABASE_URL." };
-      case "P1001":
-      case "P1002":
-      case "P1008":
-      case "P1017":
-        return { status: 503, code: "DB_INDISPONIVEL", message: "Não consegui falar com o banco. Confira o host e a porta do DATABASE_URL e se o banco está ativo." };
-      case "P2024":
-        return { status: 503, code: "DB_INDISPONIVEL", message: "Todas as conexões com o banco estão ocupadas. Use a URL com pooler no DATABASE_URL." };
-    }
+  // SQLSTATE do Postgres
+  if (sqlstate === "42P01") {
+    return { status: 503, code: "DB_SEM_TABELAS", message: `O banco está conectado, mas não tem as tabelas do Conforme. ${FIX_TABLES}` };
+  }
+  if (sqlstate === "42703") {
+    return { status: 503, code: "DB_SCHEMA_DESATUALIZADO", message: "O banco tem tabelas de uma versão antiga (falta uma coluna). Rode: npx prisma db push --skip-generate, com o DATABASE_URL do deploy." };
+  }
+  if (sqlstate === "28P01" || sqlstate === "28000") {
+    return { status: 503, code: "DB_ACESSO_NEGADO", message: "O banco recusou o usuário ou a senha do DATABASE_URL." };
+  }
+  if (sqlstate === "3D000") {
+    return { status: 503, code: "DB_INDISPONIVEL", message: "O banco indicado no DATABASE_URL não existe nesse servidor." };
+  }
+  if (["53300", "53400", "57P03", "08000", "08001", "08003", "08004", "08006"].includes(sqlstate)) {
+    return { status: 503, code: "DB_INDISPONIVEL", message: "O banco está indisponível ou sem conexões livres. Use a URL com pooler no DATABASE_URL e confira se o banco está ativo." };
   }
 
-  if (error instanceof Prisma.PrismaClientInitializationError) {
-    return { status: 503, code: "DB_SEM_CONEXAO", message: "Não consegui abrir a conexão com o banco. Confira se DATABASE_URL está definida e correta no deploy." };
+  // Rede
+  if (NETWORK_CODES.has(sqlstate) || /connect(ion)? (timeout|terminated)|timeout exceeded when trying to connect/i.test(text)) {
+    return { status: 503, code: "DB_INDISPONIVEL", message: "Não consegui falar com o banco. Confira o host e a porta do DATABASE_URL e se o banco está ativo." };
   }
 
-  // Pooler em modo transação (Supabase :6543, PgBouncer) sem o parâmetro que desliga prepared statements.
+  // Pooler do Supabase com usuário ou projeto errado
+  if (/tenant or user not found/i.test(text)) {
+    return { status: 503, code: "DB_ACESSO_NEGADO", message: "O pooler não reconheceu o usuário do DATABASE_URL. No Supabase o usuário é postgres.<ref-do-projeto> e o host precisa ser o do pooler do mesmo projeto." };
+  }
+
+  // Pooler em modo transação com prepared statements nomeados
   if (/prepared statement/i.test(text)) {
-    return { status: 503, code: "DB_POOLER", message: "A URL do banco usa pooler sem `?pgbouncer=true`. Acrescente esse parâmetro ao DATABASE_URL." };
+    return { status: 503, code: "DB_POOLER", message: "O pooler recusou prepared statements. Use a porta 6543 (modo transação) do Supabase." };
   }
 
   return null;
@@ -76,9 +88,6 @@ export function route<P extends Params = Params>(
         const first = error.issues[0];
         const where = first?.path.join(".") || "corpo";
         return errorBody(400, "VALIDATION_ERROR", `${where}: ${first?.message ?? "inválido"}`);
-      }
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
-        return errorBody(404, "NOT_FOUND", "Registro não encontrado");
       }
       console.error("[api]", error);
       const db = describeDbError(error);

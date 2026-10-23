@@ -1,14 +1,88 @@
 // Dan: converte linhas do banco no formato do contrato da API (lib/contracts.ts).
-import type {
-  Contract as DbContract,
-  ContractItem as DbItem,
-  InvoiceLine as DbLine,
-  Occurrence as DbOccurrence,
-  Review as DbReview,
-} from "@prisma/client";
 import type { ContractItem, ContractSummary, InvoiceLine } from "@/lib/contracts";
 import type { Occurrence3 as Occurrence } from "@/lib/contracts-3vias";
 import type { ConferenceLine } from "./rules";
+
+/* ---------- linhas como o Postgres devolve (nomes das colunas em camelCase) ---------- */
+
+export type DbContract = {
+  id: string;
+  number: string;
+  supplier: string;
+  object: string;
+  annualValue: number;
+  renewsAt: string;
+  hasDemoData: boolean;
+  text: string | null;
+  extractionSource: string | null;
+  extractedAt: Date | null;
+  checkedAt: Date | null;
+  opportunities: unknown;
+  nf: unknown;
+};
+
+export type DbItem = {
+  id: string;
+  contractId: string;
+  position: number;
+  name: string;
+  kind: string;
+  unit: string | null;
+  quantity: number | null;
+  unitPrice: number | null;
+  dueDate: string | null;
+  penaltyPerDayPct: number | null;
+  penaltyCapPct: number | null;
+  franchiseQty: number | null;
+  overageUnitPrice: number | null;
+  slaMinPct: number | null;
+  slaCreditPct: number | null;
+  slaBaseItemIds: string[];
+  clauseRefs: string[];
+  quote: string;
+  quoteVerified: boolean;
+};
+
+export type DbLine = {
+  id: string;
+  contractId: string;
+  itemId: string;
+  source: string;
+  invoiceSource: string | null;
+  deliverySource: string | null;
+  row: number;
+  billedQty: number | null;
+  billedUnitPrice: number | null;
+  deliveredAt: string | null;
+  measuredQty: number | null;
+  activeUsers: number | null;
+  measuredPct: number | null;
+  creditApplied: number | null;
+  penaltyApplied: number | null;
+};
+
+export type DbOccurrence = {
+  id: string;
+  contractId: string;
+  key: string;
+  itemId: string;
+  itemName: string;
+  type: string;
+  title: string;
+  impact: number;
+  explanation: string;
+  evidence: unknown;
+  active: boolean;
+};
+
+export type DbReview = {
+  id: string;
+  occurrenceId: string;
+  status: string;
+  comment: string;
+  reviewer: string;
+  createdAt: Date;
+};
 
 /* ---------- mapeamento banco → contrato da API ---------- */
 
@@ -44,8 +118,8 @@ export function toItem(row: DbItem): ContractItem {
     overageUnitPrice: row.overageUnitPrice,
     slaMinPct: row.slaMinPct,
     slaCreditPct: row.slaCreditPct,
-    slaBaseItemIds: row.slaBaseItemIds,
-    clauseRefs: row.clauseRefs,
+    slaBaseItemIds: row.slaBaseItemIds ?? [],
+    clauseRefs: row.clauseRefs ?? [],
     quote: row.quote,
     quoteVerified: row.quoteVerified,
   };

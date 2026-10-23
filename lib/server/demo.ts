@@ -1,9 +1,10 @@
 // Dan: volta o banco ao estado do data/seed-demo.json. Usado pelo prisma/seed.ts e por POST /api/demo/reset.
+import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { Prisma } from "@prisma/client";
 import seed from "@/data/seed-demo.json";
 import { applyDeliveries, applyNf } from "./billing";
+import { insertMany, type Db } from "./db";
 
 const DEMO_CONTRACT_ID = seed.demoContract.id;
 
@@ -19,47 +20,48 @@ export type RestoreOptions = {
  * Apaga revisões, ocorrências, faturas, itens e cláusulas, remove os contratos criados por upload
  * e recria os contratos do seed. Roda dentro da transação do chamador (tudo ou nada).
  */
-export async function restoreDemoSeed(tx: Prisma.TransactionClient, options: RestoreOptions = {}): Promise<void> {
+export async function restoreDemoSeed(tx: Db, options: RestoreOptions = {}): Promise<void> {
   const { filled = true } = options;
 
   // As chaves estrangeiras têm ON DELETE CASCADE: apagar os contratos leva junto revisões, ocorrências,
   // faturas, itens, cláusulas e fatos de uso. Isso também remove os contratos criados por upload.
   // Poucas consultas de propósito: com o banco em outra região cada uma custa uma ida e volta de rede.
-  await tx.contract.deleteMany();
+  await tx.query(`DELETE FROM "Contract"`);
 
-  await tx.contract.createMany({
-    data: seed.contracts.map((contract) => {
-      const isDemo = contract.id === DEMO_CONTRACT_ID;
-      return {
-        id: contract.id,
-        number: contract.number,
-        supplier: contract.supplier,
-        object: contract.object,
-        annualValue: contract.annualValue,
-        renewsAt: contract.renewsAt,
-        hasDemoData: contract.hasDemoData,
-        text: isDemo ? seed.demoContract.text : null,
-        extractionSource: isDemo ? "seed" : null,
-      };
+  await insertMany(
+    tx,
+    "Contract",
+    ["id", "number", "supplier", "object", "annualValue", "renewsAt", "hasDemoData", "text", "extractionSource"],
+    seed.contracts.map((c) => {
+      const isDemo = c.id === DEMO_CONTRACT_ID;
+      return [c.id, c.number, c.supplier, c.object, c.annualValue, c.renewsAt, c.hasDemoData, isDemo ? seed.demoContract.text : null, isDemo ? "seed" : null];
     }),
-  });
+  );
 
-  await tx.clause.createMany({
-    data: seed.demoContract.clauses.map((c) => ({ contractId: DEMO_CONTRACT_ID, ref: c.ref, text: c.text })),
-  });
+  await insertMany(
+    tx,
+    "Clause",
+    ["id", "contractId", "ref", "text"],
+    seed.demoContract.clauses.map((c) => [randomUUID(), DEMO_CONTRACT_ID, c.ref, c.text]),
+  );
 
-  await tx.contractItem.createMany({
-    data: seed.expectedItems.map((item, position) => ({
-      ...item,
-      contractId: DEMO_CONTRACT_ID,
-      quoteVerified: true,
-      position,
-    })),
-  });
+  await insertMany(
+    tx,
+    "ContractItem",
+    ["id", "contractId", "position", "name", "kind", "unit", "quantity", "unitPrice", "dueDate", "penaltyPerDayPct", "penaltyCapPct", "franchiseQty", "overageUnitPrice", "slaMinPct", "slaCreditPct", "slaBaseItemIds", "clauseRefs", "quote", "quoteVerified"],
+    seed.expectedItems.map((i, position) => [
+      i.id, DEMO_CONTRACT_ID, position, i.name, i.kind, i.unit, i.quantity, i.unitPrice, i.dueDate,
+      i.penaltyPerDayPct, i.penaltyCapPct, i.franchiseQty, i.overageUnitPrice, i.slaMinPct, i.slaCreditPct,
+      i.slaBaseItemIds, i.clauseRefs, i.quote, true,
+    ]),
+  );
 
-  await tx.usageFact.createMany({
-    data: seed.usageFacts.map((f) => ({ ...f, contractId: DEMO_CONTRACT_ID })),
-  });
+  await insertMany(
+    tx,
+    "UsageFact",
+    ["id", "contractId", "itemId", "terminatedAssigned", "overPlanUsers"],
+    seed.usageFacts.map((f) => [randomUUID(), DEMO_CONTRACT_ID, f.itemId, f.terminatedAssigned, f.overPlanUsers]),
+  );
 
   // A fatura passa pelos mesmos leitores do upload (NF em XML e entregas em CSV), então o seed testa o caminho real.
   if (filled) {

@@ -2,16 +2,15 @@
 // Recebe o cliente do banco por parâmetro para rodar dentro de uma transação (upload e reset da demo).
 //
 // Poucas consultas de propósito: com o banco em outra região cada ida e volta custa 100 ms ou mais,
-// e uma transação com dezenas de consultas estoura o tempo. Por isso o estado das linhas é montado
-// em memória e gravado com um deleteMany + um createMany.
-import type { Prisma } from "@prisma/client";
+// e uma transação com dezenas de consultas fica lenta. Por isso o estado das linhas é montado
+// em memória e gravado com um DELETE + um INSERT de várias linhas.
+import { randomUUID } from "node:crypto";
 import type { ContractItem } from "@/lib/contracts";
 import type { NfDocument, UploadError } from "@/lib/contracts-3vias";
 import { parseDeliveriesCsv } from "./csv";
-import { toItem } from "./mappers";
+import { insertMany, type Db } from "./db";
+import { toItem, type DbItem, type DbLine } from "./mappers";
 import { analyzeNf, parseNfXml, type ParsedNf } from "./nf";
-
-type Db = Prisma.TransactionClient;
 
 /** Uma linha da fatura com os dois lados. null = o arquivo daquele lado ainda não trouxe o dado. */
 type LineState = {
@@ -62,7 +61,7 @@ const clearDelivered = (l: LineState): LineState => ({
 
 /** Os dados mudaram: a última conferência não vale mais, e o próximo GET /check reconfere. */
 async function invalidateCheck(db: Db, contractId: string) {
-  await db.contract.update({ where: { id: contractId }, data: { checkedAt: null } });
+  await db.query(`UPDATE "Contract" SET "checkedAt" = NULL WHERE id = $1`, [contractId]);
 }
 
 /** Texto único da tela: junta o lado faturado e o lado entregue. */
@@ -70,13 +69,13 @@ const joinSources = (invoice: string | null, delivery: string | null) =>
   [invoice, delivery].filter(Boolean).join(" + ") || "—";
 
 async function loadItems(db: Db, contractId: string) {
-  const rows = await db.contractItem.findMany({ where: { contractId }, orderBy: { position: "asc" } });
+  const rows = await db.query<DbItem>(`SELECT * FROM "ContractItem" WHERE "contractId" = $1 ORDER BY "position"`, [contractId]);
   return rows.map((row) => ({ item: toItem(row), position: row.position }));
 }
 
 /** Linhas que já existem, por item. Se houver duas do mesmo item (CSV antigo), vale a primeira. */
 async function loadStates(db: Db, contractId: string) {
-  const rows = await db.invoiceLine.findMany({ where: { contractId }, orderBy: { row: "asc" } });
+  const rows = await db.query<DbLine>(`SELECT * FROM "InvoiceLine" WHERE "contractId" = $1 ORDER BY "row"`, [contractId]);
   const states = new Map<string, LineState>();
   for (const r of rows) {
     if (states.has(r.itemId)) continue;
@@ -100,15 +99,29 @@ async function loadStates(db: Db, contractId: string) {
 /** Substitui as linhas do contrato pelo estado montado, na ordem dos itens do contrato. */
 async function saveStates(db: Db, contractId: string, states: Map<string, LineState>, positionOf: Map<string, number>) {
   const ordered = [...states.values()].sort((a, b) => (positionOf.get(a.itemId) ?? 0) - (positionOf.get(b.itemId) ?? 0));
-  await db.invoiceLine.deleteMany({ where: { contractId } });
-  await db.invoiceLine.createMany({
-    data: ordered.map((l) => ({
-      ...l,
+  await db.query(`DELETE FROM "InvoiceLine" WHERE "contractId" = $1`, [contractId]);
+  await insertMany(
+    db,
+    "InvoiceLine",
+    ["id", "contractId", "itemId", "source", "invoiceSource", "deliverySource", "row", "billedQty", "billedUnitPrice", "deliveredAt", "measuredQty", "activeUsers", "measuredPct", "creditApplied", "penaltyApplied"],
+    ordered.map((l) => [
+      randomUUID(),
       contractId,
-      source: joinSources(l.invoiceSource, l.deliverySource),
-      row: (positionOf.get(l.itemId) ?? 0) + 1,
-    })),
-  });
+      l.itemId,
+      joinSources(l.invoiceSource, l.deliverySource),
+      l.invoiceSource,
+      l.deliverySource,
+      (positionOf.get(l.itemId) ?? 0) + 1,
+      l.billedQty,
+      l.billedUnitPrice,
+      l.deliveredAt,
+      l.measuredQty,
+      l.activeUsers,
+      l.measuredPct,
+      l.creditApplied,
+      l.penaltyApplied,
+    ]),
+  );
 }
 
 /**
@@ -172,7 +185,7 @@ async function persistNf(
   }
 
   await saveStates(db, contractId, states, positionOf);
-  await db.contract.update({ where: { id: contractId }, data: { nf: parsed.nf as unknown as Prisma.InputJsonValue, checkedAt: null } });
+  await db.query(`UPDATE "Contract" SET nf = $2::jsonb, "checkedAt" = NULL WHERE id = $1`, [contractId, JSON.stringify(parsed.nf)]);
 
   // Erros de linha (produto desconhecido) voltam junto, e a NF segue valendo para o que foi reconhecido.
   return { nf: parsed.nf, errors: parsed.errors };

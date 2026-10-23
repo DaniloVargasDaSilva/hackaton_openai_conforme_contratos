@@ -1,9 +1,10 @@
 // Dan: regras de negócio que as rotas chamam. As rotas só leem a requisição e devolvem a resposta.
+// Acesso ao banco em SQL direto (driver pg), sem Prisma.
 import { randomUUID } from "node:crypto";
-import type { Clause as DbClause, Contract as DbContract } from "@prisma/client";
 import type { z } from "zod";
 import type {
   ContractDetail,
+  ContractItem,
   ContractSummary,
   CreateContractBody as CreateContractBodySchema,
   InvoiceLine,
@@ -14,32 +15,62 @@ import type {
 import type { CheckResult3, NfDocument, Occurrence3, UploadError } from "@/lib/contracts-3vias";
 import { classifyAbc } from "./abc";
 import { applyDeliveries, applyNf, applyNfDocument } from "./billing";
-import { prisma } from "./db";
+import { db, getConnectionTarget, insertMany, transaction, type Db } from "./db";
 import { ApiError, describeDbError } from "./http";
 import { extractItems, isAiEnabled, NfPhotoError, readNfFromImage, writeReport } from "./ai";
 import { parseInvoiceCsv } from "./csv";
-import { toConferenceLine, toItem, toLine, toOccurrence, toSummary } from "./mappers";
+import {
+  toConferenceLine,
+  toItem,
+  toLine,
+  toOccurrence,
+  toSummary,
+  type DbContract,
+  type DbItem,
+  type DbLine,
+  type DbOccurrence,
+  type DbReview,
+} from "./mappers";
 import { conferir, type UsageFactInput } from "./rules";
-
-/** Banco em outra região: cada consulta custa uma ida e volta de rede, então o padrão de 5 s do Prisma não basta. */
-const TX_OPTIONS = { timeout: 30_000, maxWait: 10_000 };
 
 type CreateContractBody = z.infer<typeof CreateContractBodySchema>;
 type ReviewBody = z.infer<typeof ReviewBodySchema>;
 type Opportunity = CheckResult3["opportunities"][number];
 type Occurrence = Occurrence3;
 
+const ITEM_COLUMNS = [
+  "id", "contractId", "position", "name", "kind", "unit", "quantity", "unitPrice", "dueDate", "penaltyPerDayPct",
+  "penaltyCapPct", "franchiseQty", "overageUnitPrice", "slaMinPct", "slaCreditPct", "slaBaseItemIds", "clauseRefs",
+  "quote", "quoteVerified",
+];
+
+const itemRow = (contractId: string, i: ContractItem, position: number): unknown[] => [
+  i.id, contractId, position, i.name, i.kind, i.unit, i.quantity, i.unitPrice, i.dueDate, i.penaltyPerDayPct,
+  i.penaltyCapPct, i.franchiseQty, i.overageUnitPrice, i.slaMinPct, i.slaCreditPct, i.slaBaseItemIds, i.clauseRefs,
+  i.quote, i.quoteVerified,
+];
+
+const LINE_COLUMNS = [
+  "id", "contractId", "itemId", "source", "invoiceSource", "deliverySource", "row", "billedQty", "billedUnitPrice",
+  "deliveredAt", "measuredQty", "activeUsers", "measuredPct", "creditApplied", "penaltyApplied",
+];
+
+/** Campos que a tela pode editar numa linha da fatura. */
+const PATCHABLE = ["billedQty", "billedUnitPrice", "deliveredAt", "measuredQty", "activeUsers", "measuredPct", "creditApplied", "penaltyApplied"] as const;
+
+const now = () => new Date().toISOString();
+
 /* ---------- carteira ---------- */
 
 export async function listContracts(): Promise<ContractSummary[]> {
-  const rows = await prisma.contract.findMany({ orderBy: { annualValue: "desc" } });
+  const rows = await db.query<DbContract>(`SELECT * FROM "Contract" ORDER BY "annualValue" DESC`);
   const abc = classifyAbc(rows);
   return rows.map((row) => toSummary(row, abc.get(row.id)!));
 }
 
-/** Carrega um contrato com o resumo (com ABC calculada sobre a carteira inteira). */
-async function findContract(id: string) {
-  const row = await prisma.contract.findUnique({ where: { id } });
+/** Carrega um contrato ou responde 404. */
+async function findContract(id: string, q: Db = db): Promise<DbContract> {
+  const [row] = await q.query<DbContract>(`SELECT * FROM "Contract" WHERE id = $1`, [id]);
   if (!row) throw new ApiError(404, "NOT_FOUND", `Contrato ${id} não encontrado`);
   return row;
 }
@@ -47,15 +78,15 @@ async function findContract(id: string) {
 export async function getContractDetail(id: string): Promise<ContractDetail> {
   const [contract, all, clauses, items] = await Promise.all([
     findContract(id),
-    prisma.contract.findMany({ select: { id: true, annualValue: true } }),
-    prisma.clause.findMany({ where: { contractId: id }, orderBy: { ref: "asc" } }),
-    prisma.contractItem.findMany({ where: { contractId: id }, orderBy: { position: "asc" } }),
+    db.query<{ id: string; annualValue: number }>(`SELECT id, "annualValue" FROM "Contract"`),
+    db.query<{ ref: string; text: string }>(`SELECT ref, text FROM "Clause" WHERE "contractId" = $1 ORDER BY ref`, [id]),
+    db.query<DbItem>(`SELECT * FROM "ContractItem" WHERE "contractId" = $1 ORDER BY "position"`, [id]),
   ]);
   const abc = classifyAbc(all).get(id)!;
 
   return {
     contract: { ...toSummary(contract, abc), text: contract.text ?? "" },
-    clauses: clauses.map((c: DbClause) => ({ ref: c.ref, text: c.text })),
+    clauses: clauses.map((c) => ({ ref: c.ref, text: c.text })),
     items: items.map(toItem),
     extraction: {
       // Contrato sem extração ainda entra como fallback, sem itens.
@@ -67,18 +98,11 @@ export async function getContractDetail(id: string): Promise<ContractDetail> {
 
 export async function createContract(body: CreateContractBody): Promise<ContractDetail> {
   const id = `up-${randomUUID().slice(0, 8)}`;
-  await prisma.contract.create({
-    data: {
-      id,
-      number: body.number,
-      supplier: body.supplier,
-      object: body.object,
-      annualValue: body.annualValue,
-      renewsAt: body.renewsAt,
-      text: body.text,
-      hasDemoData: false,
-    },
-  });
+  await db.query(
+    `INSERT INTO "Contract" (id, number, supplier, object, "annualValue", "renewsAt", "hasDemoData", text)
+     VALUES ($1, $2, $3, $4, $5, $6, false, $7)`,
+    [id, body.number, body.supplier, body.object, body.annualValue, body.renewsAt, body.text],
+  );
   return getContractDetail(id);
 }
 
@@ -92,16 +116,11 @@ export async function extractContract(id: string): Promise<ContractDetail> {
 
   const { items, source } = await extractItems(id, contract.text);
 
-  await prisma.$transaction(async (tx) => {
-    await tx.contractItem.deleteMany({ where: { contractId: id } });
-    await tx.contractItem.createMany({
-      data: items.map((item, position) => ({ ...item, contractId: id, position })),
-    });
-    await tx.contract.update({
-      where: { id },
-      data: { extractionSource: source, extractedAt: new Date(), checkedAt: null },
-    });
-  }, TX_OPTIONS);
+  await transaction(async (tx) => {
+    await tx.query(`DELETE FROM "ContractItem" WHERE "contractId" = $1`, [id]);
+    await insertMany(tx, "ContractItem", ITEM_COLUMNS, items.map((item, position) => itemRow(id, item, position)));
+    await tx.query(`UPDATE "Contract" SET "extractionSource" = $2, "extractedAt" = $3, "checkedAt" = NULL WHERE id = $1`, [id, source, now()]);
+  });
 
   return getContractDetail(id);
 }
@@ -110,32 +129,28 @@ export async function extractContract(id: string): Promise<ContractDetail> {
 
 export async function listInvoiceLines(contractId: string): Promise<InvoiceLine[]> {
   await findContract(contractId);
-  const rows = await prisma.invoiceLine.findMany({
-    where: { contractId },
-    orderBy: { row: "asc" },
-  });
+  const rows = await db.query<DbLine>(`SELECT * FROM "InvoiceLine" WHERE "contractId" = $1 ORDER BY "row"`, [contractId]);
   return rows.map(toLine);
 }
 
 export async function uploadInvoiceCsv(contractId: string, csv: string) {
   await findContract(contractId);
-  const items = await prisma.contractItem.findMany({
-    where: { contractId },
-    select: { id: true },
-  });
+  const items = await db.query<{ id: string }>(`SELECT id FROM "ContractItem" WHERE "contractId" = $1`, [contractId]);
   const { lines, errors } = parseInvoiceCsv(csv, new Set(items.map((i) => i.id)));
 
-  await prisma.$transaction(async (tx) => {
-    await tx.invoiceLine.deleteMany({ where: { contractId } });
-    await tx.contract.update({ where: { id: contractId }, data: { checkedAt: null } });
-    await tx.invoiceLine.createMany({
-      data: lines.map((line, index) => ({
-        ...line,
-        contractId,
-        row: index + 2,
-      })),
-    });
-  }, TX_OPTIONS);
+  await transaction(async (tx) => {
+    await tx.query(`DELETE FROM "InvoiceLine" WHERE "contractId" = $1`, [contractId]);
+    await tx.query(`UPDATE "Contract" SET "checkedAt" = NULL WHERE id = $1`, [contractId]);
+    await insertMany(
+      tx,
+      "InvoiceLine",
+      LINE_COLUMNS,
+      lines.map((l, index) => [
+        randomUUID(), contractId, l.itemId, l.source, null, null, index + 2, l.billedQty, l.billedUnitPrice,
+        l.deliveredAt, l.measuredQty, l.activeUsers, l.measuredPct, l.creditApplied, l.penaltyApplied,
+      ]),
+    );
+  });
 
   return { lines: await listInvoiceLines(contractId), errors };
 }
@@ -152,7 +167,7 @@ export async function uploadNf(
   xml: string,
 ): Promise<{ nf: NfDocument | null; lines: InvoiceLine[]; errors: UploadError[] }> {
   await findContract(contractId);
-  const { nf, errors } = await prisma.$transaction((tx) => applyNf(tx, contractId, xml), TX_OPTIONS);
+  const { nf, errors } = await transaction((tx) => applyNf(tx, contractId, xml));
   return { nf, lines: await listInvoiceLines(contractId), errors };
 }
 
@@ -166,7 +181,7 @@ export async function uploadNfPhoto(
   mimeType: string,
 ): Promise<{ nf: NfDocument | null; lines: InvoiceLine[]; errors: UploadError[] }> {
   await findContract(contractId);
-  const itemRows = await prisma.contractItem.findMany({ where: { contractId }, orderBy: { position: "asc" } });
+  const itemRows = await db.query<DbItem>(`SELECT * FROM "ContractItem" WHERE "contractId" = $1 ORDER BY "position"`, [contractId]);
 
   let nf: NfDocument;
   try {
@@ -178,7 +193,7 @@ export async function uploadNfPhoto(
     throw error;
   }
 
-  const saved = await prisma.$transaction((tx) => applyNfDocument(tx, contractId, nf), TX_OPTIONS);
+  const saved = await transaction((tx) => applyNfDocument(tx, contractId, nf));
   return { nf: saved.nf, lines: await listInvoiceLines(contractId), errors: saved.errors };
 }
 
@@ -188,14 +203,28 @@ export async function uploadDeliveries(
   csv: string,
 ): Promise<{ lines: InvoiceLine[]; errors: UploadError[] }> {
   await findContract(contractId);
-  const { errors } = await prisma.$transaction((tx) => applyDeliveries(tx, contractId, csv), TX_OPTIONS);
+  const { errors } = await transaction((tx) => applyDeliveries(tx, contractId, csv));
   return { lines: await listInvoiceLines(contractId), errors };
 }
 
 export async function patchInvoiceLine(lineId: string, patch: InvoiceLinePatch): Promise<InvoiceLine> {
-  const row = await prisma.invoiceLine.update({ where: { id: lineId }, data: patch });
+  const values: unknown[] = [lineId];
+  const sets: string[] = [];
+  for (const key of PATCHABLE) {
+    const value = patch[key];
+    if (value !== undefined) {
+      values.push(value);
+      sets.push(`"${key}" = $${values.length}`);
+    }
+  }
+
+  const [row] = sets.length
+    ? await db.query<DbLine>(`UPDATE "InvoiceLine" SET ${sets.join(", ")} WHERE id = $1 RETURNING *`, values)
+    : await db.query<DbLine>(`SELECT * FROM "InvoiceLine" WHERE id = $1`, [lineId]);
+  if (!row) throw new ApiError(404, "NOT_FOUND", "Linha da fatura não encontrada");
+
   // A edição muda os números: a conferência anterior não vale mais.
-  await prisma.contract.update({ where: { id: row.contractId }, data: { checkedAt: null } });
+  await db.query(`UPDATE "Contract" SET "checkedAt" = NULL WHERE id = $1`, [row.contractId]);
   return toLine(row);
 }
 
@@ -203,33 +232,41 @@ export async function patchInvoiceLine(lineId: string, patch: InvoiceLinePatch):
 
 async function loadConferenceInputs(contractId: string) {
   const [items, lines, usageFacts, clauses] = await Promise.all([
-    prisma.contractItem.findMany({ where: { contractId }, orderBy: { position: "asc" } }),
-    prisma.invoiceLine.findMany({ where: { contractId }, orderBy: { row: "asc" } }),
-    prisma.usageFact.findMany({ where: { contractId } }),
-    prisma.clause.findMany({ where: { contractId } }),
+    db.query<DbItem>(`SELECT * FROM "ContractItem" WHERE "contractId" = $1 ORDER BY "position"`, [contractId]),
+    db.query<DbLine>(`SELECT * FROM "InvoiceLine" WHERE "contractId" = $1 ORDER BY "row"`, [contractId]),
+    db.query<UsageFactInput>(`SELECT "itemId", "overPlanUsers" FROM "UsageFact" WHERE "contractId" = $1`, [contractId]),
+    db.query<{ ref: string; text: string }>(`SELECT ref, text FROM "Clause" WHERE "contractId" = $1`, [contractId]),
   ]);
   return {
     items: items.map(toItem),
     lines: lines.map(toConferenceLine),
-    usageFacts: usageFacts as UsageFactInput[],
+    usageFacts,
     clauses: clauses.map((c) => ({ ref: c.ref, text: c.text })),
   };
 }
 
+/** Junta as revisões às ocorrências com uma consulta só. */
+async function withReviews(rows: DbOccurrence[], q: Db = db): Promise<(DbOccurrence & { reviews: DbReview[] })[]> {
+  if (rows.length === 0) return [];
+  const reviews = await q.query<DbReview>(`SELECT * FROM "Review" WHERE "occurrenceId" = ANY($1::text[])`, [rows.map((r) => r.id)]);
+  const byOccurrence = new Map<string, DbReview[]>();
+  for (const review of reviews) byOccurrence.set(review.occurrenceId, [...(byOccurrence.get(review.occurrenceId) ?? []), review]);
+  return rows.map((row) => ({ ...row, reviews: byOccurrence.get(row.id) ?? [] }));
+}
+
+const round2 = (n: number) => Math.round(n * 100) / 100;
+
 /** Lê o estado persistido: ocorrências ativas com revisões, mais as oportunidades da última conferência. */
 async function buildCheckResult(contractId: string, known?: DbContract): Promise<CheckResult3> {
   const contract = known ?? (await findContract(contractId));
-  const rows = await prisma.occurrence.findMany({
-    where: { contractId, active: true },
-    include: { reviews: true },
-    orderBy: { impact: "desc" },
-  });
-  const occurrences = rows.map(toOccurrence);
+  const rows = await db.query<DbOccurrence>(
+    `SELECT * FROM "Occurrence" WHERE "contractId" = $1 AND active ORDER BY impact DESC`,
+    [contractId],
+  );
+  const occurrences = (await withReviews(rows)).map(toOccurrence);
 
   const atStake = occurrences.reduce((sum, o) => sum + o.impact, 0);
-  const confirmed = occurrences
-    .filter((o) => o.status === "confirmada")
-    .reduce((sum, o) => sum + o.impact, 0);
+  const confirmed = occurrences.filter((o) => o.status === "confirmada").reduce((sum, o) => sum + o.impact, 0);
   const pendingCount = occurrences.filter((o) => o.status === "pendente").length;
 
   return {
@@ -241,8 +278,6 @@ async function buildCheckResult(contractId: string, known?: DbContract): Promise
   };
 }
 
-const round2 = (n: number) => Math.round(n * 100) / 100;
-
 /**
  * Reconfere o contrato. Recalcula as ocorrências e mantém as revisões pela `key`.
  * Ocorrência que sumiu fica inativa, e as revisões dela continuam no banco.
@@ -252,33 +287,27 @@ export async function runCheck(contractId: string): Promise<CheckResult3> {
   const [, inputs] = await Promise.all([findContract(contractId), loadConferenceInputs(contractId)]);
   const { occurrences, opportunities } = conferir(inputs.items, inputs.lines, inputs.usageFacts, inputs.clauses);
 
-  const updated = await prisma.$transaction(async (tx) => {
+  const updated = await transaction(async (tx) => {
     for (const o of occurrences) {
-      const data = {
-        itemId: o.itemId,
-        itemName: o.itemName,
-        type: o.type,
-        title: o.title,
-        impact: o.impact,
-        explanation: o.explanation,
-        evidence: o.evidence,
-        active: true,
-      };
-      await tx.occurrence.upsert({
-        where: { contractId_key: { contractId, key: o.key } },
-        create: { ...data, contractId, key: o.key },
-        update: data,
-      });
+      await tx.query(
+        `INSERT INTO "Occurrence" (id, "contractId", key, "itemId", "itemName", type, title, impact, explanation, evidence, active)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, true)
+         ON CONFLICT ("contractId", key) DO UPDATE SET
+           "itemId" = EXCLUDED."itemId", "itemName" = EXCLUDED."itemName", type = EXCLUDED.type, title = EXCLUDED.title,
+           impact = EXCLUDED.impact, explanation = EXCLUDED.explanation, evidence = EXCLUDED.evidence, active = true`,
+        [randomUUID(), contractId, o.key, o.itemId, o.itemName, o.type, o.title, o.impact, o.explanation, JSON.stringify(o.evidence)],
+      );
     }
-    await tx.occurrence.updateMany({
-      where: { contractId, key: { notIn: occurrences.map((o) => o.key) } },
-      data: { active: false },
-    });
-    return tx.contract.update({
-      where: { id: contractId },
-      data: { checkedAt: new Date(), opportunities: opportunities as unknown as object },
-    });
-  }, TX_OPTIONS);
+    await tx.query(`UPDATE "Occurrence" SET active = false WHERE "contractId" = $1 AND NOT (key = ANY($2::text[]))`, [
+      contractId,
+      occurrences.map((o) => o.key),
+    ]);
+    const [contract] = await tx.query<DbContract>(
+      `UPDATE "Contract" SET "checkedAt" = $2, opportunities = $3::jsonb WHERE id = $1 RETURNING *`,
+      [contractId, now(), JSON.stringify(opportunities)],
+    );
+    return contract;
+  });
 
   return buildCheckResult(contractId, updated);
 }
@@ -287,31 +316,24 @@ export async function runCheck(contractId: string): Promise<CheckResult3> {
 export async function getCheck(contractId: string): Promise<CheckResult3> {
   const contract = await findContract(contractId);
   if (!contract.checkedAt) return runCheck(contractId);
-  return buildCheckResult(contractId);
+  return buildCheckResult(contractId, contract);
 }
 
 /* ---------- revisão ---------- */
 
 export async function reviewOccurrence(occId: string, body: ReviewBody): Promise<Occurrence> {
-  const occurrence = await prisma.occurrence.findUnique({ where: { id: occId } });
+  const [occurrence] = await db.query<DbOccurrence>(`SELECT * FROM "Occurrence" WHERE id = $1`, [occId]);
   if (!occurrence) throw new ApiError(404, "NOT_FOUND", "Ocorrência não encontrada");
   if (!occurrence.active) {
     throw new ApiError(409, "OCORRENCIA_INATIVA", "A ocorrência não existe mais na última conferência");
   }
 
-  await prisma.review.create({
-    data: {
-      occurrenceId: occId,
-      status: body.status,
-      comment: body.comment,
-      reviewer: body.reviewer,
-    },
-  });
+  await db.query(
+    `INSERT INTO "Review" (id, "occurrenceId", status, comment, reviewer, "createdAt") VALUES ($1, $2, $3, $4, $5, $6)`,
+    [randomUUID(), occId, body.status, body.comment, body.reviewer, now()],
+  );
 
-  const row = await prisma.occurrence.findUniqueOrThrow({
-    where: { id: occId },
-    include: { reviews: true },
-  });
+  const [row] = await withReviews([occurrence]);
   return toOccurrence(row);
 }
 
@@ -319,12 +341,11 @@ export async function reviewOccurrence(occId: string, body: ReviewBody): Promise
 
 export async function generateReport(contractId: string): Promise<Report> {
   const contract = await findContract(contractId);
-  const rows = await prisma.occurrence.findMany({
-    where: { contractId, active: true },
-    include: { reviews: true },
-    orderBy: { impact: "desc" },
-  });
-  const confirmed = rows.map(toOccurrence).filter((o) => o.status === "confirmada");
+  const rows = await db.query<DbOccurrence>(
+    `SELECT * FROM "Occurrence" WHERE "contractId" = $1 AND active ORDER BY impact DESC`,
+    [contractId],
+  );
+  const confirmed = (await withReviews(rows)).map(toOccurrence).filter((o) => o.status === "confirmada");
 
   const { text, source } = await writeReport(contract.number, contract.supplier, confirmed);
   return { text, source, generatedAt: new Date().toISOString() };
@@ -333,42 +354,27 @@ export async function generateReport(contractId: string): Promise<Report> {
 /* ---------- saúde ---------- */
 
 /**
- * Para onde o app está conectado, sem a senha. Ajuda a ver, no ar, se o DATABASE_URL da Vercel
- * aponta para o banco certo (o erro mais comum: a variável aponta para outro banco vazio).
- * Só aparece com DEMO_RESET_ENABLED=1, o modo de demonstração.
- */
-function connectionTarget() {
-  if (process.env.DEMO_RESET_ENABLED !== "1" || !process.env.DATABASE_URL) return null;
-  try {
-    const url = new URL(process.env.DATABASE_URL);
-    // Supabase: o usuário do pooler é "postgres.<ref>"; a conexão direta tem o host "db.<ref>.supabase.co".
-    const project = url.username.split(".")[1] ?? url.hostname.match(/^db\.([a-z0-9]+)\.supabase\.co$/)?.[1] ?? null;
-    return { host: url.hostname, port: url.port || "5432", database: url.pathname.replace(/^\//, "") || null, project };
-  } catch {
-    return null;
-  }
-}
-
-/**
  * Saúde da API. `db` = conectou no banco; `schema` = as tabelas existem; `ok` exige os dois.
  * O SELECT 1 sozinho passa num banco vazio, e aí as rotas dão erro com a saúde dizendo que está tudo bem.
+ * `target` (host, banco e projeto, nunca a senha) só aparece com DEMO_RESET_ENABLED=1, o modo de demonstração.
  */
 export async function health() {
   const ai = isAiEnabled();
+  const target = () => (process.env.DEMO_RESET_ENABLED === "1" ? getConnectionTarget() : null);
 
   try {
-    await prisma.$queryRaw`SELECT 1`;
+    await db.query(`SELECT 1`);
   } catch (error) {
     const problem = describeDbError(error);
-    return { ok: false, db: false, schema: false, ai, target: connectionTarget(), detail: problem?.message ?? "Não consegui conectar no banco." };
+    return { ok: false, db: false, schema: false, ai, target: target(), detail: problem?.message ?? "Não consegui conectar no banco." };
   }
 
   try {
-    await prisma.contract.count();
+    await db.query(`SELECT 1 FROM "Contract" LIMIT 1`);
   } catch (error) {
     const problem = describeDbError(error);
-    return { ok: false, db: true, schema: false, ai, target: connectionTarget(), detail: problem?.message ?? "O banco conecta, mas a consulta às tabelas falhou." };
+    return { ok: false, db: true, schema: false, ai, target: target(), detail: problem?.message ?? "O banco conecta, mas a consulta às tabelas falhou." };
   }
 
-  return { ok: true, db: true, schema: true, ai, target: connectionTarget(), detail: null };
+  return { ok: true, db: true, schema: true, ai, target: target(), detail: null };
 }

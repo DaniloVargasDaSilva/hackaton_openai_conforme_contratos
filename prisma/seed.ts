@@ -1,11 +1,9 @@
 // Dan: seed do banco com data/seed-demo.json (npm run db:seed). A mesma rotina serve ao POST /api/demo/reset.
-import { PrismaClient } from "@prisma/client";
+import { closePool, transaction } from "../lib/server/db";
 import { restoreDemoSeed } from "../lib/server/demo";
 
-const prisma = new PrismaClient();
-
 async function main() {
-  await prisma.$transaction((tx) => restoreDemoSeed(tx), { timeout: 30_000 });
+  await transaction((tx) => restoreDemoSeed(tx));
   console.log("Seed da demo aplicado.");
 }
 
@@ -14,4 +12,4 @@ main()
     console.error(error);
     process.exitCode = 1;
   })
-  .finally(() => prisma.$disconnect());
+  .finally(() => closePool());

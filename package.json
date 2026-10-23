@@ -4,10 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && next build",
+    "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "db:push": "prisma db push",
+    "db:push": "prisma db push --skip-generate",
     "db:seed": "prisma db seed",
     "check:deploy": "tsx scripts/check-deploy.mts",
     "db:setup": "prisma db push --skip-generate && prisma db seed",
@@ -18,11 +18,11 @@
     "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
-    "@prisma/client": "6.10.1",
     "@tanstack/react-query": "^5.90.2",
     "fast-xml-parser": "^5.2.5",
     "next": "15.3.8",
     "openai": "5.8.2",
+    "pg": "^8.23.1",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-dropzone": "^14.3.8",
@@ -33,6 +33,7 @@
     "@eslint/eslintrc": "3.3.1",
     "@tailwindcss/postcss": "4.1.11",
     "@types/node": "22.15.21",
+    "@types/pg": "^8.23.1",
     "@types/react": "19.1.8",
     "@types/react-dom": "19.1.6",
     "eslint": "9.29.0",
