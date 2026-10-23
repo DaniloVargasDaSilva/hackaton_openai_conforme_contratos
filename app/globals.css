@@ -192,6 +192,10 @@ a{color:var(--acento)}
 .abas-cel a.on{background:var(--acento-leve);border-color:var(--acento-borda);color:var(--acento);font-weight:600}
 
 /* ---- Extras do app (não estavam no mockup) ---- */
+/* Valor nunca quebra no meio; o card de total encolhe a fonte pela própria largura. */
+.num{white-space:nowrap}
+.card{min-width:0;container-type:inline-size}
+.card-val{white-space:nowrap;font-size:clamp(22px,12.5cqi,40px)}
 .btn{cursor:pointer;transition:background .15s,border-color .15s}
 .btn:hover{border-color:var(--tinta-tenue)}
 .btn-pri:hover{background:var(--acento-forte);border-color:var(--acento-forte)}

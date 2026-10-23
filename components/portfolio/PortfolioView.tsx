@@ -146,9 +146,7 @@ export function PortfolioView() {
           {/* Card (celular) */}
           <div className="card mb-3.5 md:hidden">
             <div className="card-rot">Gasto anual em software</div>
-            <div className="card-val" style={{ fontSize: 36 }}>
-              {moneyInt(total)}
-            </div>
+            <div className="card-val">{moneyInt(total)}</div>
             <div className="mt-3 flex gap-2">
               {byClass.map((b) => (
                 <span key={b.k} className="chip chip-neutro">

@@ -13,7 +13,7 @@ export function TotalsBar({
   confirmed: number;
 }) {
   return (
-    <div className="mb-[22px] grid max-w-[720px] grid-cols-1 gap-3.5 sm:grid-cols-3">
+    <div className="mb-[22px] grid grid-cols-1 gap-3.5 sm:grid-cols-[1fr_1.4fr_1.4fr]">
       <div className="card">
         <div className="card-rot">Ocorrências</div>
         <div className="card-val">{count}</div>
@@ -21,16 +21,12 @@ export function TotalsBar({
       </div>
       <div className="card">
         <div className="card-rot">Em jogo</div>
-        <div className="card-val text-falta" style={{ fontSize: 34 }}>
-          {money(atStake)}
-        </div>
+        <div className="card-val text-falta">{money(atStake)}</div>
         <div className="card-meta">soma das ocorrências</div>
       </div>
       <div className="card">
         <div className="card-rot">Confirmado</div>
-        <div className="card-val text-dinheiro" style={{ fontSize: 34 }}>
-          {money(confirmed)}
-        </div>
+        <div className="card-val text-dinheiro">{money(confirmed)}</div>
         <div className="card-meta">{confirmed === 0 ? "nada revisado ainda" : "já revisado e confirmado"}</div>
       </div>
     </div>
