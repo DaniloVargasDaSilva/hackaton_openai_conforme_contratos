@@ -1,10 +1,11 @@
-import { money, number } from "@/lib/format";
+import { money, number, pct as fmtPct } from "@/lib/format";
 import type { ContractItem, InvoiceLine, Opportunity } from "@/lib/contracts";
 
-// O título da oportunidade começa pela quantidade ("6 licenças atribuídas a…"); só leitura de texto.
+// O título da oportunidade começa pela quantidade ("22 licenças da suíte sem uso…"); só leitura de texto.
 const leadingCount = (op?: Opportunity) => op?.title.match(/^\s*(\d+)/)?.[1] ?? null;
 
-// Oportunidades de economia por uso. Tudo vem do back; a barra é só exibição.
+// Oportunidade de economia por uso. Tudo vem do back; a barra é só exibição.
+// Fica separada dos valores a revisar (TotalsBar): naturezas diferentes, nunca somados.
 export function UsageRules({
   opportunities,
   items,
@@ -24,29 +25,46 @@ export function UsageRules({
   const pct = showBar ? Math.min(100, Math.max(0, (active / total) * 100)) : 0;
 
   const semUso = opportunities.find((o) => o.itemId === "suite" && o.rule === "sem_uso");
-  const monthly = (op?: Opportunity) =>
-    op && op.monthlyValue != null ? (
-      <>
-        {" · "}
-        <span className="num">{money(op.monthlyValue)}</span>/mês
-      </>
-    ) : null;
+  const idle = showBar ? Number(leadingCount(semUso) ?? total - active) : null;
+  const unitPrice = suiteItem?.unitPrice ?? null;
 
   return (
     <section
       className="mt-[22px] overflow-hidden rounded-xl border border-filete bg-superficie"
-      aria-label="Regras de utilização"
+      style={{ borderLeft: "3px solid var(--acento)" }}
+      aria-label="Oportunidade de economia"
     >
-      <div
-        className="border-b border-filete px-4 py-2.5"
-        style={{ borderLeft: "3px solid var(--filete-forte)" }}
-      >
-        <h3 className="m-0 text-[13px] font-semibold uppercase tracking-[.06em] text-tinta-fraca">
-          Regras de utilização
+      <div className="border-b border-filete px-4 py-2.5">
+        <h3 className="m-0 text-[13px] font-semibold uppercase tracking-[.06em] text-acento">
+          Oportunidade de economia
         </h3>
-        <p className="m-0 mt-0.5 text-[13px] text-tinta-tenue">não são divergência: são oportunidades de economia</p>
+        <p className="m-0 mt-0.5 text-[13px] text-tinta-tenue">
+          regras de utilização · não é divergência do fornecedor e não entra nos valores a revisar
+        </p>
       </div>
       <div className="p-4">
+        {semUso?.monthlyValue != null && (
+          <div className="mb-4">
+            <div className="num text-[28px] font-semibold leading-tight text-acento">
+              {money(semUso.monthlyValue)}
+              <span className="text-[14px] font-normal text-tinta-fraca">/mês</span>
+            </div>
+            {idle != null && total != null && (
+              <div className="mt-1 text-[14px] text-tinta-fraca">
+                <span className="num">{number(idle)}</span> de <span className="num">{number(total)}</span> licenças da
+                suíte sem uso (<span className="num">{fmtPct(Math.round((idle / total) * 1000) / 10)}</span>)
+                {unitPrice != null && (
+                  <>
+                    {" · "}
+                    <span className="num">
+                      {number(idle)} × {money(unitPrice)}
+                    </span>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        )}
         {showBar && (
           <div className="mb-4">
             <div className="mb-2 flex items-baseline justify-between gap-3">
@@ -70,8 +88,8 @@ export function UsageRules({
                 <div className="text-[13px] text-tinta-fraca">em uso</div>
               </div>
               <div>
-                <b className="num">{leadingCount(semUso) ?? number(total - active)}</b>
-                <div className="text-[13px] text-tinta-fraca">sem uso{monthly(semUso)}</div>
+                <b className="num">{number(idle)}</b>
+                <div className="text-[13px] text-tinta-fraca">sem uso</div>
               </div>
             </div>
           </div>

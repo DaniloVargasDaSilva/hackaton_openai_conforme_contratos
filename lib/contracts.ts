@@ -107,7 +107,7 @@ export type Occurrence = z.infer<typeof Occurrence>;
 export const Opportunity = z.object({
   id: z.string(),
   itemId: z.string(),
-  rule: z.enum(["sem_uso", "desligados", "plano_acima"]),
+  rule: z.enum(["sem_uso", "plano_acima"]), // LGPD: sem regra sobre pessoas, só contagem agregada de uso
   title: z.string(),
   monthlyValue: z.number().nullable(),
   detail: z.string(),

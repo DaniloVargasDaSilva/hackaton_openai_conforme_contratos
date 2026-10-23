@@ -306,7 +306,7 @@ export function ThreeWayTable({
           ) : (
             !semLinhas && (
               <span>
-                Em jogo <b className="num text-falta">{money(atStake)}</b>
+                A revisar <b className="num text-falta">{money(atStake)}</b>
               </span>
             )
           )}
@@ -364,7 +364,7 @@ export function ThreeWayTable({
               {visiveis.length} de {rows.length} itens nesta visão
               {!semLinhas && (
                 <>
-                  {" · em jogo "}
+                  {" · a revisar "}
                   <b className="num text-falta">{money(atStake)}</b>
                 </>
               )}
