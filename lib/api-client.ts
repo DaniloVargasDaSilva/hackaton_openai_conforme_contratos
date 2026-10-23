@@ -167,3 +167,17 @@ export function generateReport(id: string): Promise<z.infer<typeof Report>> {
   if (mocked("report")) return viaMock(Report, () => mocks.generateReport(id), "report");
   return request(`/api/contracts/${id}/report`, { method: "POST" }, Report);
 }
+
+/* ---------- NF por foto (IA lê a imagem) ---------- */
+// POST /api/contracts/:id/nf-photo → mesma resposta do upload do XML.
+// No mock, a "IA" devolve a NF 8812 do seed (reaproveita o mock do XML, sem mexer em lib/mocks).
+export async function readInvoicePhoto(
+  contractId: string,
+  photo: { imageBase64: string; mimeType: string },
+): Promise<UploadNfResultT> {
+  if (mocked("nf")) {
+    await new Promise((r) => setTimeout(r, 1500));
+    return viaMock(UploadNfResult, () => mocks.uploadNf(contractId, "<nNF>8812</nNF> (lida da foto)"), "nfPhoto");
+  }
+  return request(`/api/contracts/${contractId}/nf-photo`, json(photo), UploadNfResult);
+}

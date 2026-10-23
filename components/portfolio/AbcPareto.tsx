@@ -14,7 +14,15 @@ const PLOT_H = H - PAD.top - PAD.bottom;
 
 // Pareto da carteira: barras do valor anual (ordem da API) + linha do % acumulado.
 // Classe e % acumulado vêm prontos da API; aqui só se desenha.
-export function AbcPareto({ contracts, highlightId }: { contracts: ContractSummary[]; highlightId?: string }) {
+export function AbcPareto({
+  contracts,
+  highlightId,
+  title = "Curva ABC da carteira",
+}: {
+  contracts: ContractSummary[];
+  highlightId?: string;
+  title?: string;
+}) {
   if (contracts.length === 0) return null;
   const max = Math.max(...contracts.map((c) => c.annualValue));
   const step = PLOT_W / contracts.length;
@@ -37,7 +45,7 @@ export function AbcPareto({ contracts, highlightId }: { contracts: ContractSumma
   return (
     <section className="card mb-6" style={{ padding: "16px 18px 12px", containerType: "normal" }} aria-label="Curva ABC da carteira">
       <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="m-0 text-[16px] font-semibold">Curva ABC da carteira</h2>
+        <h2 className="m-0 text-[16px] font-semibold">{title}</h2>
         <span className="text-[13px] text-tinta-fraca">
           barras: valor anual · linha: % acumulado do gasto
         </span>
