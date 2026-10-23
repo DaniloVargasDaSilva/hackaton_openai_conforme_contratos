@@ -90,7 +90,17 @@ const IcoSpark = (
   </svg>
 );
 
-function ExtractButton({ onExtract, extracting, className = "" }: { onExtract: () => void; extracting: boolean; className?: string }) {
+function ExtractButton({
+  onExtract,
+  extracting,
+  className = "",
+  label = "Extrair de novo com IA",
+}: {
+  onExtract: () => void;
+  extracting: boolean;
+  className?: string;
+  label?: string;
+}) {
   return (
     <button type="button" className={`btn justify-center ${className}`} onClick={onExtract} disabled={extracting}>
       {extracting ? (
@@ -99,7 +109,7 @@ function ExtractButton({ onExtract, extracting, className = "" }: { onExtract: (
         </>
       ) : (
         <>
-          {IcoSpark} Extrair de novo com IA
+          {IcoSpark} {label}
         </>
       )}
     </button>
@@ -116,7 +126,7 @@ export function ItemsPanel({ items, extraction, selectedId, onSelect, onExtract,
       <div className="border-b border-filete p-4">
         <div className="flex items-center justify-between gap-2">
           <h2 className="text-[17px] font-semibold">Itens extraídos</h2>
-          <SourceChip source={extraction.source} />
+          {!empty && <SourceChip source={extraction.source} />}
         </div>
         <p className="mb-3 mt-1.5 text-[14px] text-tinta-fraca">
           {empty ? "Nenhum item ainda." : `${items.length} ${items.length === 1 ? "item" : "itens"}`} · a IA lê o contrato, você
@@ -127,9 +137,9 @@ export function ItemsPanel({ items, extraction, selectedId, onSelect, onExtract,
 
       {empty ? (
         <div className="p-4">
-          <EmptyState title="Nenhum item extraído">
+          <EmptyState title="Nenhum item extraído ainda">
             <p className="mb-3">Peça para a IA ler o contrato e listar o que foi combinado.</p>
-            <ExtractButton onExtract={onExtract} extracting={extracting} />
+            <ExtractButton onExtract={onExtract} extracting={extracting} label="Extrair com IA" className="btn-pri" />
           </EmptyState>
         </div>
       ) : (

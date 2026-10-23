@@ -2,10 +2,10 @@
 // a partir do seed. O check NÃO reimplementa o motor: devolve o expectedCheck do seed.
 import type { ContractDetail, InvoiceLinePatch, Opportunity, Review } from "../contracts";
 import type { CheckResult3 as CheckResult, Occurrence3 as Occurrence } from "../contracts-3vias";
-import type { ReviewBody } from "../api-client";
+import type { CreateContractBody, ReviewBody } from "../api-client";
 import { ApiClientError } from "../api-error";
 import { simulate } from "./latency";
-import { contractsWithAbc, getStore, mergePart, seedData } from "./store";
+import { contractsWithAbc, findCreated, getStore, mergePart, seedData } from "./store";
 import { nf8812, occurrenceFixtures, opportunityFixtures, reportText, typeOrder } from "./fixtures";
 
 const DEMO_ID = seedData.demoContract.id;
@@ -17,6 +17,15 @@ function notFound(what: string): never {
 function contractDetail(id: string, source: ContractDetail["extraction"]["source"], at: string | null): ContractDetail {
   const summary = contractsWithAbc().find((c) => c.id === id);
   if (!summary) notFound("Contrato");
+  const created = findCreated(id);
+  if (created) {
+    return {
+      contract: { ...summary, text: created.text },
+      clauses: [],
+      items: created.items,
+      extraction: created.extraction,
+    };
+  }
   const isDemo = id === DEMO_ID;
   return {
     contract: { ...summary, text: isDemo ? seedData.demoContract.text : "" },
@@ -83,7 +92,38 @@ export const mocks = {
     return contractDetail(id, "seed", null);
   },
 
+  async createContract(body: CreateContractBody) {
+    await simulate("contracts", 700);
+    const id = `c-${body.number.replace(/\D+/g, "-").replace(/^-|-$/g, "")}-${Date.now().toString(36).slice(-4)}`;
+    getStore().created.push({
+      summary: {
+        id,
+        number: body.number,
+        supplier: body.supplier,
+        object: body.object,
+        annualValue: body.annualValue,
+        renewsAt: body.renewsAt,
+        hasDemoData: true,
+      },
+      text: body.text,
+      items: [],
+      extraction: { source: "seed", at: null },
+    });
+    return contractDetail(id, "seed", null);
+  },
+
   async extractContract(id: string) {
+    const created = findCreated(id);
+    if (created) {
+      // No mock a "IA" devolve os itens de referência do seed; o trecho só conta
+      // como conferido se existir no texto enviado (como faz o back).
+      await simulate("extract", 1800);
+      const norm = (t: string) => t.replace(/\s+/g, " ").trim();
+      const text = norm(created.text);
+      created.items = seedData.expectedItems.map((it) => ({ ...it, quoteVerified: text.includes(norm(it.quote)) }));
+      created.extraction = { source: "fallback", at: new Date().toISOString() };
+      return contractDetail(id, "fallback", created.extraction.at);
+    }
     await simulate("extract", 1800);
     return contractDetail(id, "fallback", new Date().toISOString());
   },

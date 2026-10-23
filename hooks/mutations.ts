@@ -20,6 +20,17 @@ function useRecheck(contractId: string) {
   };
 }
 
+export function useCreateContract() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: api.CreateContractBody) => api.createContract(body),
+    onSuccess: (detail) => {
+      qc.setQueryData(qk.contract(detail.contract.id), detail);
+      qc.invalidateQueries({ queryKey: qk.contracts });
+    },
+  });
+}
+
 export function useExtract(contractId: string) {
   const qc = useQueryClient();
   return useMutation({

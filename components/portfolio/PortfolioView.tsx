@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
+import { NewContractPanel } from "./NewContractPanel";
 import { useContracts } from "@/hooks/queries";
 import { amount, date, inMonths, moneyInt, number, pct } from "@/lib/format";
 import type { ContractSummary } from "@/lib/contracts";
@@ -87,6 +89,7 @@ function LoadingView() {
 const valor = (v: number) => amount(v).replace(/,00$/, "");
 
 export function PortfolioView() {
+  const [newOpen, setNewOpen] = useState(false);
   const { data, isLoading, error, refetch } = useContracts();
 
   const total = data?.reduce((s, c) => s + c.annualValue, 0) ?? 0;
@@ -98,7 +101,8 @@ export function PortfolioView() {
 
   return (
     <main className="w-full px-4 py-[18px] md:p-7">
-      <div className="mb-5 max-md:mb-3.5">
+      <div className="mb-5 flex items-end justify-between gap-3 max-md:mb-3.5">
+        <div>
         <h1 className="m-0 text-[21px] font-semibold tracking-[-0.01em] md:text-2xl">
           <span className="max-md:hidden">Carteira de contratos de software</span>
           <span className="md:hidden">Carteira</span>
@@ -106,7 +110,12 @@ export function PortfolioView() {
         <p className="mt-1 text-tinta-fraca max-md:hidden">
           Onde está o dinheiro: curva ABC pelo valor anual. Comece pelos contratos A.
         </p>
+        </div>
+        <button type="button" className="btn btn-pri shrink-0" onClick={() => setNewOpen(true)}>
+          + Novo contrato
+        </button>
       </div>
+      <NewContractPanel open={newOpen} onClose={() => setNewOpen(false)} />
 
       {isLoading && <LoadingView />}
       {error && !isLoading && <ErrorState error={error} onRetry={() => refetch()} />}
