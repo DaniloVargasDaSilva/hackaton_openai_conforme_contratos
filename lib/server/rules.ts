@@ -6,7 +6,9 @@ import type { Occurrence3 } from "@/lib/contracts-3vias";
 
 type OccurrenceType = Occurrence3["type"];
 
-export type UsageFactInput = { itemId: string; terminatedAssigned: number; overPlanUsers: number };
+// LGPD: o Conforme não cruza a lista de desligados do RH, então não há regra de "licenças de desligados".
+// A coluna terminatedAssigned existe no banco (fica 0) e é ignorada aqui.
+export type UsageFactInput = { itemId: string; overPlanUsers: number };
 
 /** Linha da fatura com a origem de cada lado. Linha antiga (CSV único) só tem `source`. */
 export type ConferenceLine = InvoiceLine & {
@@ -300,17 +302,6 @@ function opportunitiesFor(
           detail: `Só ${num.format(line.activeUsers)} usaram nos últimos 30 dias, de ${num.format(contracted)} faturados.`,
         });
       }
-    }
-
-    if (fact && fact.terminatedAssigned > 0) {
-      out.push({
-        id: `${item.id}:desligados`,
-        itemId: item.id,
-        rule: "desligados",
-        title: `${withUnit(fact.terminatedAssigned, unit)} atribuídas a pessoas desligadas`,
-        monthlyValue: round2(fact.terminatedAssigned * item.unitPrice),
-        detail: "Constam na lista do RH como desligadas e ainda estão com licença ativa.",
-      });
     }
 
     if (fact && fact.overPlanUsers > 0) {
