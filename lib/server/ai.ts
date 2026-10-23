@@ -97,7 +97,7 @@ function finalizeItems(raw: AiItem[], contractText: string, seedItems: ContractI
   const idByName = new Map<string, string>();
 
   const ids = raw.map((item) => {
-    let id = seedByName.get(slug(item.name)) ?? slug(item.name) ?? "item";
+    const id = seedByName.get(slug(item.name)) ?? slug(item.name) ?? "item";
     let candidate = id;
     for (let n = 2; used.has(candidate); n++) candidate = `${id}-${n}`;
     used.add(candidate);
