@@ -1,0 +1,500 @@
+{
+  "_sobre": "Dados fictícios da demo do Conforme. Front usa como mock; back usa como seed do banco e como fallback da extração por IA.",
+  "company": {
+    "name": "Rota Sul Logística Ltda.",
+    "reviewerDefault": "Carla (TI)"
+  },
+  "contracts": [
+    {
+      "id": "c-018",
+      "number": "018/2025",
+      "supplier": "DataBase Corp",
+      "object": "Banco de dados e licenças de servidor",
+      "annualValue": 410000,
+      "renewsAt": "2027-03-31",
+      "hasDemoData": false
+    },
+    {
+      "id": "c-042",
+      "number": "042/2026",
+      "supplier": "NuvemSoft Tecnologia",
+      "object": "Suíte, CRM, backup, IA e suporte",
+      "annualValue": 318000,
+      "renewsAt": "2027-08-31",
+      "hasDemoData": true
+    },
+    {
+      "id": "c-031",
+      "number": "031/2026",
+      "supplier": "ERP Fiscal Sul",
+      "object": "ERP e módulo fiscal",
+      "annualValue": 265000,
+      "renewsAt": "2027-06-30",
+      "hasDemoData": false
+    },
+    {
+      "id": "c-012",
+      "number": "012/2025",
+      "supplier": "TeleRastro",
+      "object": "Software de rastreamento de frota",
+      "annualValue": 188000,
+      "renewsAt": "2027-01-31",
+      "hasDemoData": false
+    },
+    {
+      "id": "c-007",
+      "number": "007/2025",
+      "supplier": "SegurNet",
+      "object": "Antivírus e proteção de estações",
+      "annualValue": 142000,
+      "renewsAt": "2027-02-28",
+      "hasDemoData": false
+    },
+    {
+      "id": "c-055",
+      "number": "055/2026",
+      "supplier": "DesignPro",
+      "object": "Licenças de desenho técnico",
+      "annualValue": 96000,
+      "renewsAt": "2026-12-31",
+      "hasDemoData": false
+    },
+    {
+      "id": "c-027",
+      "number": "027/2026",
+      "supplier": "PontoFácil",
+      "object": "RH e controle de ponto",
+      "annualValue": 54000,
+      "renewsAt": "2027-09-30",
+      "hasDemoData": false
+    },
+    {
+      "id": "c-039",
+      "number": "039/2026",
+      "supplier": "ChamadosJá",
+      "object": "Central de chamados de TI",
+      "annualValue": 38000,
+      "renewsAt": "2027-05-31",
+      "hasDemoData": false
+    },
+    {
+      "id": "c-044",
+      "number": "044/2026",
+      "supplier": "AssinaDoc",
+      "object": "Assinatura eletrônica",
+      "annualValue": 22000,
+      "renewsAt": "2027-07-31",
+      "hasDemoData": false
+    },
+    {
+      "id": "c-050",
+      "number": "050/2026",
+      "supplier": "VideoMeet",
+      "object": "Videoconferência",
+      "annualValue": 17000,
+      "renewsAt": "2027-10-31",
+      "hasDemoData": false
+    }
+  ],
+  "demoContract": {
+    "id": "c-042",
+    "competence": "2026-10",
+    "invoiceNumber": "NF 8812",
+    "text": "CONTRATO Nº 042/2026 · FORNECIMENTO DE SOFTWARE E SERVIÇOS DE TI\nContratante: Rota Sul Logística Ltda. Contratada: NuvemSoft Tecnologia Ltda. Vigência de 01/09/2026 a 31/08/2027.\n\nCLÁUSULA 2 · LICENÇAS E SERVIÇOS EM NUVEM\n2.1 Suíte de produtividade (e-mail e escritório): 120 licenças, a R$ 62,00 por licença por mês.\n2.2 CRM de vendas, plano Pro: 40 licenças, a R$ 180,00 por licença por mês.\n2.3 Backup em nuvem: pacote de 2 TB de armazenamento, a R$ 900,00 por mês.\n2.4 API de IA generativa: franquia de 50 milhões de tokens por mês por R$ 4.000,00; o excedente é cobrado a R$ 90,00 por milhão de tokens, conforme a medição do painel de consumo.\n\nCLÁUSULA 3 · SUPORTE\n3.1 Suporte técnico nível 2, limitado a 40 horas por mês, a R$ 150,00 por hora efetivamente prestada.\n\nCLÁUSULA 4 · IMPLANTAÇÃO E TREINAMENTO\n4.1 Implantação do CRM concluída até 15/10/2026, pelo valor único de R$ 12.000,00.\n4.2 Duas turmas de treinamento realizadas até 31/10/2026, a R$ 2.500,00 por turma.\n4.3 Em caso de atraso na implantação, multa de 0,5% do valor da implantação por dia de atraso, limitada a 10%.\n\nCLÁUSULA 5 · NÍVEL DE SERVIÇO\n5.1 Disponibilidade mínima mensal de 99,5% para os serviços das cláusulas 2.1 a 2.3.\n5.2 Abaixo desse nível, a Contratada concede crédito de 10% da mensalidade desses serviços na fatura do mês seguinte.\n\nCLÁUSULA 6 · PREÇO\n6.1 Os preços deste contrato são fixos até 31/12/2026, sem reajuste.",
+    "clauses": [
+      {
+        "ref": "2.1",
+        "text": "Suíte de produtividade (e-mail e escritório): 120 licenças, a R$ 62,00 por licença por mês."
+      },
+      {
+        "ref": "2.2",
+        "text": "CRM de vendas, plano Pro: 40 licenças, a R$ 180,00 por licença por mês."
+      },
+      {
+        "ref": "2.3",
+        "text": "Backup em nuvem: pacote de 2 TB de armazenamento, a R$ 900,00 por mês."
+      },
+      {
+        "ref": "2.4",
+        "text": "API de IA generativa: franquia de 50 milhões de tokens por mês por R$ 4.000,00; o excedente é cobrado a R$ 90,00 por milhão de tokens, conforme a medição do painel de consumo."
+      },
+      {
+        "ref": "3.1",
+        "text": "Suporte técnico nível 2, limitado a 40 horas por mês, a R$ 150,00 por hora efetivamente prestada."
+      },
+      {
+        "ref": "4.1",
+        "text": "Implantação do CRM concluída até 15/10/2026, pelo valor único de R$ 12.000,00."
+      },
+      {
+        "ref": "4.2",
+        "text": "Duas turmas de treinamento realizadas até 31/10/2026, a R$ 2.500,00 por turma."
+      },
+      {
+        "ref": "4.3",
+        "text": "Em caso de atraso na implantação, multa de 0,5% do valor da implantação por dia de atraso, limitada a 10%."
+      },
+      {
+        "ref": "5.1",
+        "text": "Disponibilidade mínima mensal de 99,5% para os serviços das cláusulas 2.1 a 2.3."
+      },
+      {
+        "ref": "5.2",
+        "text": "Abaixo desse nível, a Contratada concede crédito de 10% da mensalidade desses serviços na fatura do mês seguinte."
+      },
+      {
+        "ref": "6.1",
+        "text": "Os preços deste contrato são fixos até 31/12/2026, sem reajuste."
+      }
+    ]
+  },
+  "expectedItems": [
+    {
+      "id": "suite",
+      "name": "Suíte de produtividade",
+      "kind": "recorrente",
+      "unit": "licença",
+      "quantity": 120,
+      "unitPrice": 62,
+      "dueDate": null,
+      "penaltyPerDayPct": null,
+      "penaltyCapPct": null,
+      "franchiseQty": null,
+      "overageUnitPrice": null,
+      "slaMinPct": null,
+      "slaCreditPct": null,
+      "slaBaseItemIds": [],
+      "clauseRefs": [
+        "2.1",
+        "6.1"
+      ],
+      "quote": "Suíte de produtividade (e-mail e escritório): 120 licenças, a R$ 62,00 por licença por mês.",
+      "quoteVerified": true
+    },
+    {
+      "id": "crm",
+      "name": "CRM de vendas (Pro)",
+      "kind": "recorrente",
+      "unit": "licença",
+      "quantity": 40,
+      "unitPrice": 180,
+      "dueDate": null,
+      "penaltyPerDayPct": null,
+      "penaltyCapPct": null,
+      "franchiseQty": null,
+      "overageUnitPrice": null,
+      "slaMinPct": null,
+      "slaCreditPct": null,
+      "slaBaseItemIds": [],
+      "clauseRefs": [
+        "2.2",
+        "6.1"
+      ],
+      "quote": "CRM de vendas, plano Pro: 40 licenças, a R$ 180,00 por licença por mês.",
+      "quoteVerified": true
+    },
+    {
+      "id": "backup",
+      "name": "Backup em nuvem",
+      "kind": "recorrente",
+      "unit": "pacote 2 TB",
+      "quantity": 1,
+      "unitPrice": 900,
+      "dueDate": null,
+      "penaltyPerDayPct": null,
+      "penaltyCapPct": null,
+      "franchiseQty": null,
+      "overageUnitPrice": null,
+      "slaMinPct": null,
+      "slaCreditPct": null,
+      "slaBaseItemIds": [],
+      "clauseRefs": [
+        "2.3",
+        "6.1"
+      ],
+      "quote": "Backup em nuvem: pacote de 2 TB de armazenamento, a R$ 900,00 por mês.",
+      "quoteVerified": true
+    },
+    {
+      "id": "tokens",
+      "name": "API de IA generativa",
+      "kind": "consumo",
+      "unit": "milhão de tokens",
+      "quantity": null,
+      "unitPrice": 4000,
+      "dueDate": null,
+      "penaltyPerDayPct": null,
+      "penaltyCapPct": null,
+      "franchiseQty": 50,
+      "overageUnitPrice": 90,
+      "slaMinPct": null,
+      "slaCreditPct": null,
+      "slaBaseItemIds": [],
+      "clauseRefs": [
+        "2.4"
+      ],
+      "quote": "API de IA generativa: franquia de 50 milhões de tokens por mês por R$ 4.000,00; o excedente é cobrado a R$ 90,00 por milhão de tokens, conforme a medição do painel de consumo.",
+      "quoteVerified": true
+    },
+    {
+      "id": "suporte",
+      "name": "Suporte nível 2",
+      "kind": "recorrente",
+      "unit": "hora",
+      "quantity": 40,
+      "unitPrice": 150,
+      "dueDate": null,
+      "penaltyPerDayPct": null,
+      "penaltyCapPct": null,
+      "franchiseQty": null,
+      "overageUnitPrice": null,
+      "slaMinPct": null,
+      "slaCreditPct": null,
+      "slaBaseItemIds": [],
+      "clauseRefs": [
+        "3.1",
+        "6.1"
+      ],
+      "quote": "Suporte técnico nível 2, limitado a 40 horas por mês, a R$ 150,00 por hora efetivamente prestada.",
+      "quoteVerified": true
+    },
+    {
+      "id": "implantacao",
+      "name": "Implantação do CRM",
+      "kind": "entrega",
+      "unit": "entrega",
+      "quantity": 1,
+      "unitPrice": 12000,
+      "dueDate": "2026-10-15",
+      "penaltyPerDayPct": 0.5,
+      "penaltyCapPct": 10,
+      "franchiseQty": null,
+      "overageUnitPrice": null,
+      "slaMinPct": null,
+      "slaCreditPct": null,
+      "slaBaseItemIds": [],
+      "clauseRefs": [
+        "4.1",
+        "4.3"
+      ],
+      "quote": "Implantação do CRM concluída até 15/10/2026, pelo valor único de R$ 12.000,00.",
+      "quoteVerified": true
+    },
+    {
+      "id": "treinamento",
+      "name": "Treinamento",
+      "kind": "entrega",
+      "unit": "turma",
+      "quantity": 2,
+      "unitPrice": 2500,
+      "dueDate": "2026-10-31",
+      "penaltyPerDayPct": null,
+      "penaltyCapPct": null,
+      "franchiseQty": null,
+      "overageUnitPrice": null,
+      "slaMinPct": null,
+      "slaCreditPct": null,
+      "slaBaseItemIds": [],
+      "clauseRefs": [
+        "4.2"
+      ],
+      "quote": "Duas turmas de treinamento realizadas até 31/10/2026, a R$ 2.500,00 por turma.",
+      "quoteVerified": true
+    },
+    {
+      "id": "sla",
+      "name": "Disponibilidade (SLA)",
+      "kind": "nivel_servico",
+      "unit": "%",
+      "quantity": null,
+      "unitPrice": null,
+      "dueDate": null,
+      "penaltyPerDayPct": null,
+      "penaltyCapPct": null,
+      "franchiseQty": null,
+      "overageUnitPrice": null,
+      "slaMinPct": 99.5,
+      "slaCreditPct": 10,
+      "slaBaseItemIds": [
+        "suite",
+        "crm",
+        "backup"
+      ],
+      "clauseRefs": [
+        "5.1",
+        "5.2"
+      ],
+      "quote": "Disponibilidade mínima mensal de 99,5% para os serviços das cláusulas 2.1 a 2.3. Abaixo desse nível, a Contratada concede crédito de 10% da mensalidade desses serviços na fatura do mês seguinte.",
+      "quoteVerified": true
+    }
+  ],
+  "invoiceLines": [
+    {
+      "id": "l1",
+      "contractId": "c-042",
+      "itemId": "suite",
+      "source": "NF 8812 · linha 1",
+      "billedQty": 135,
+      "billedUnitPrice": 62,
+      "deliveredAt": null,
+      "measuredQty": null,
+      "activeUsers": 98,
+      "measuredPct": null,
+      "creditApplied": null,
+      "penaltyApplied": null
+    },
+    {
+      "id": "l2",
+      "contractId": "c-042",
+      "itemId": "crm",
+      "source": "NF 8812 · linha 2",
+      "billedQty": 40,
+      "billedUnitPrice": 198,
+      "deliveredAt": null,
+      "measuredQty": null,
+      "activeUsers": null,
+      "measuredPct": null,
+      "creditApplied": null,
+      "penaltyApplied": null
+    },
+    {
+      "id": "l3",
+      "contractId": "c-042",
+      "itemId": "backup",
+      "source": "NF 8812 · linha 3",
+      "billedQty": 1,
+      "billedUnitPrice": 900,
+      "deliveredAt": null,
+      "measuredQty": null,
+      "activeUsers": null,
+      "measuredPct": null,
+      "creditApplied": null,
+      "penaltyApplied": null
+    },
+    {
+      "id": "l4",
+      "contractId": "c-042",
+      "itemId": "tokens",
+      "source": "NF 8812 · linha 7 + painel de consumo",
+      "billedQty": 66,
+      "billedUnitPrice": 90,
+      "deliveredAt": null,
+      "measuredQty": 58,
+      "activeUsers": null,
+      "measuredPct": null,
+      "creditApplied": null,
+      "penaltyApplied": null
+    },
+    {
+      "id": "l5",
+      "contractId": "c-042",
+      "itemId": "suporte",
+      "source": "NF 8812 · linha 4",
+      "billedQty": 38,
+      "billedUnitPrice": 150,
+      "deliveredAt": null,
+      "measuredQty": null,
+      "activeUsers": null,
+      "measuredPct": null,
+      "creditApplied": null,
+      "penaltyApplied": null
+    },
+    {
+      "id": "l6",
+      "contractId": "c-042",
+      "itemId": "implantacao",
+      "source": "Termo de aceite + NF 8812 · linha 5",
+      "billedQty": 1,
+      "billedUnitPrice": 12000,
+      "deliveredAt": "2026-10-27",
+      "measuredQty": null,
+      "activeUsers": null,
+      "measuredPct": null,
+      "creditApplied": null,
+      "penaltyApplied": 0
+    },
+    {
+      "id": "l7",
+      "contractId": "c-042",
+      "itemId": "treinamento",
+      "source": "Lista de presença + NF 8812 · linha 6",
+      "billedQty": 2,
+      "billedUnitPrice": 2500,
+      "deliveredAt": "2026-10-29",
+      "measuredQty": 2,
+      "activeUsers": null,
+      "measuredPct": null,
+      "creditApplied": null,
+      "penaltyApplied": null
+    },
+    {
+      "id": "l8",
+      "contractId": "c-042",
+      "itemId": "sla",
+      "source": "Relatório de disponibilidade de setembro + NF 8812",
+      "billedQty": null,
+      "billedUnitPrice": null,
+      "deliveredAt": null,
+      "measuredQty": null,
+      "activeUsers": null,
+      "measuredPct": 98.9,
+      "creditApplied": 0,
+      "penaltyApplied": null
+    }
+  ],
+  "invoiceCsv": "item_id,fonte,qtd_faturada,preco_unitario_faturado,data_entrega,qtd_medida,usuarios_ativos,disponibilidade_pct,credito_aplicado,multa_aplicada\nsuite,\"NF 8812 · linha 1\",135,62,,,98,,,\ncrm,\"NF 8812 · linha 2\",40,198,,,,,,\nbackup,\"NF 8812 · linha 3\",1,900,,,,,,\ntokens,\"NF 8812 · linha 7 + painel de consumo\",66,90,,58,,,,\nsuporte,\"NF 8812 · linha 4\",38,150,,,,,,\nimplantacao,\"Termo de aceite + NF 8812 · linha 5\",1,12000,2026-10-27,,,,,0\ntreinamento,\"Lista de presença + NF 8812 · linha 6\",2,2500,2026-10-29,2,,,,\nsla,\"Relatório de disponibilidade de setembro + NF 8812\",,,,,,98.9,0,",
+  "usageFacts": [
+    {
+      "itemId": "suite",
+      "terminatedAssigned": 6,
+      "overPlanUsers": 0
+    },
+    {
+      "itemId": "crm",
+      "terminatedAssigned": 0,
+      "overPlanUsers": 9
+    }
+  ],
+  "expectedCheck": {
+    "occurrences": [
+      {
+        "key": "suite:quantidade",
+        "impact": 930
+      },
+      {
+        "key": "crm:valor",
+        "impact": 720
+      },
+      {
+        "key": "tokens:quantidade",
+        "impact": 720
+      },
+      {
+        "key": "implantacao:prazo",
+        "impact": 720
+      },
+      {
+        "key": "sla:sla",
+        "impact": 1554
+      }
+    ],
+    "atStake": 4644,
+    "opportunities": [
+      {
+        "itemId": "suite",
+        "rule": "sem_uso",
+        "monthlyValue": 1364
+      },
+      {
+        "itemId": "suite",
+        "rule": "desligados",
+        "monthlyValue": 372
+      },
+      {
+        "itemId": "crm",
+        "rule": "plano_acima",
+        "monthlyValue": null
+      }
+    ]
+  }
+}
