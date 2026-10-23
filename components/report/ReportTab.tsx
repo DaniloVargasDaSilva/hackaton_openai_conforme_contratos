@@ -20,6 +20,7 @@ export function ReportTab({ contractId }: { contractId: string }) {
 
   const confirmed = check.data?.occurrences.filter((o) => o.status === "confirmada").length;
   const noneConfirmed = check.data != null && confirmed === 0;
+  const pending = check.data?.occurrences.filter((o) => o.status === "pendente").length ?? 0;
 
   async function copy() {
     if (!report) return;
@@ -53,7 +54,7 @@ export function ReportTab({ contractId }: { contractId: string }) {
               Copiar
             </button>
           )}
-          <button className="btn btn-pri" onClick={() => mutation.mutate()} disabled={running}>
+          <button className="btn btn-pri" onClick={() => mutation.mutate()} disabled={running || noneConfirmed}>
             {running ? (
               <>
                 <Spinner /> Redigindo…
@@ -73,7 +74,9 @@ export function ReportTab({ contractId }: { contractId: string }) {
           className="mb-4 rounded-xl border px-4 py-3 text-[15px] font-semibold"
           style={{ background: "var(--alerta-leve)", borderColor: "var(--alerta-borda)", color: "var(--alerta)" }}
         >
-          Confirme ao menos uma ocorrência na aba Ocorrências
+          {pending > 0
+            ? `Há ${pending} ${pending === 1 ? "ocorrência pendente" : "ocorrências pendentes"}. Confirme ao menos uma na aba Ocorrências para gerar o relatório.`
+            : "Não há ocorrências para o relatório. Envie a NF e as entregas na aba Faturado × entregue e confirme as ocorrências."}
         </div>
       )}
 
