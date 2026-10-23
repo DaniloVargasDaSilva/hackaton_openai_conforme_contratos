@@ -96,3 +96,5 @@ Com `?estado=vazio` a fatura fica vazia, para enviar os arquivos durante a grava
 ## Branches
 
 `front` e `back`, com merge na `main` a cada entrega pequena. Ninguém mexe na pasta do outro sem avisar.
+
+<!-- teste de deploy da Vercel: 2026-10-23 18:46 UTC -->
