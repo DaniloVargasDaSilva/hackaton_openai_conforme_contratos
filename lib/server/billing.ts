@@ -5,10 +5,11 @@
 // e uma transação com dezenas de consultas estoura o tempo. Por isso o estado das linhas é montado
 // em memória e gravado com um deleteMany + um createMany.
 import type { Prisma } from "@prisma/client";
+import type { ContractItem } from "@/lib/contracts";
 import type { NfDocument, UploadError } from "@/lib/contracts-3vias";
 import { parseDeliveriesCsv } from "./csv";
 import { toItem } from "./mappers";
-import { parseNfXml } from "./nf";
+import { analyzeNf, parseNfXml, type ParsedNf } from "./nf";
 
 type Db = Prisma.TransactionClient;
 
@@ -115,8 +116,25 @@ export async function applyNf(
   xml: string,
 ): Promise<{ nf: NfDocument | null; errors: UploadError[] }> {
   const items = await loadItems(db, contractId);
-  const parsed = parseNfXml(xml, items.map((i) => i.item));
+  return persistNf(db, contractId, items, parseNfXml(xml, items.map((i) => i.item)));
+}
 
+/** Grava uma NF já lida (por exemplo, de uma foto) do mesmo jeito que o XML. */
+export async function applyNfDocument(
+  db: Db,
+  contractId: string,
+  nf: NfDocument,
+): Promise<{ nf: NfDocument | null; errors: UploadError[] }> {
+  const items = await loadItems(db, contractId);
+  return persistNf(db, contractId, items, analyzeNf(nf, items.map((i) => i.item)));
+}
+
+async function persistNf(
+  db: Db,
+  contractId: string,
+  items: { item: ContractItem; position: number }[],
+  parsed: ParsedNf,
+): Promise<{ nf: NfDocument | null; errors: UploadError[] }> {
   // Sem NF legível, nada muda no banco.
   if (!parsed.nf) return { nf: null, errors: parsed.errors };
 

@@ -13,10 +13,10 @@ import type {
 } from "@/lib/contracts";
 import type { CheckResult3, NfDocument, Occurrence3, UploadError } from "@/lib/contracts-3vias";
 import { classifyAbc } from "./abc";
-import { applyDeliveries, applyNf } from "./billing";
+import { applyDeliveries, applyNf, applyNfDocument } from "./billing";
 import { prisma } from "./db";
 import { ApiError } from "./http";
-import { extractItems, writeReport, isAiEnabled } from "./ai";
+import { extractItems, isAiEnabled, NfPhotoError, readNfFromImage, writeReport } from "./ai";
 import { parseInvoiceCsv } from "./csv";
 import { toConferenceLine, toItem, toLine, toOccurrence, toSummary } from "./mappers";
 import { conferir, type UsageFactInput } from "./rules";
@@ -153,6 +153,32 @@ export async function uploadNf(
   await findContract(contractId);
   const { nf, errors } = await prisma.$transaction((tx) => applyNf(tx, contractId, xml), TX_OPTIONS);
   return { nf, lines: await listInvoiceLines(contractId), errors };
+}
+
+/**
+ * POST /nf-photo: a IA lê a foto da NF e o resultado é gravado como se fosse o XML.
+ * A chamada à IA fica fora da transação, para não segurar uma conexão do banco esperando a OpenAI.
+ */
+export async function uploadNfPhoto(
+  contractId: string,
+  imageBase64: string,
+  mimeType: string,
+): Promise<{ nf: NfDocument | null; lines: InvoiceLine[]; errors: UploadError[] }> {
+  await findContract(contractId);
+  const itemRows = await prisma.contractItem.findMany({ where: { contractId }, orderBy: { position: "asc" } });
+
+  let nf: NfDocument;
+  try {
+    nf = await readNfFromImage(imageBase64, mimeType, itemRows.map(toItem));
+  } catch (error) {
+    if (error instanceof NfPhotoError) {
+      return { nf: null, lines: await listInvoiceLines(contractId), errors: [{ row: null, message: error.message }] };
+    }
+    throw error;
+  }
+
+  const saved = await prisma.$transaction((tx) => applyNfDocument(tx, contractId, nf), TX_OPTIONS);
+  return { nf: saved.nf, lines: await listInvoiceLines(contractId), errors: saved.errors };
 }
 
 /** POST /deliveries: grava o lado entregue a partir do CSV. Reenviar substitui só o lado entregue. */
