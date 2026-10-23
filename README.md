@@ -63,6 +63,12 @@ DEMO_RESET_ENABLED=0     # 1 liga POST /api/demo/reset (só durante a gravação
    npm run check:deploy -- https://seu-app.vercel.app --write    # fluxo completo (precisa de DEMO_RESET_ENABLED=1)
    ```
 
+Regressão de **todas** as rotas, com os caminhos de erro (altera dados e devolve a demo ao estado inicial;
+precisa de `DEMO_RESET_ENABLED=1` no alvo):
+```bash
+npm run test:api -- http://localhost:3000
+```
+
 `POST /api/demo/reset` volta a demo ao estado inicial (NF 8812 e entregas carregadas).
 Com `?estado=vazio` a fatura fica vazia, para enviar os arquivos durante a gravação.
 
