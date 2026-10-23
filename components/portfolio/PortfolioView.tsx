@@ -97,7 +97,7 @@ export function PortfolioView() {
   });
 
   return (
-    <main className="mx-auto w-full max-w-[1280px] px-4 py-[18px] md:p-7">
+    <main className="w-full px-4 py-[18px] md:p-7">
       <div className="mb-5 max-md:mb-3.5">
         <h1 className="m-0 text-[21px] font-semibold tracking-[-0.01em] md:text-2xl">
           <span className="max-md:hidden">Carteira de contratos de software</span>
