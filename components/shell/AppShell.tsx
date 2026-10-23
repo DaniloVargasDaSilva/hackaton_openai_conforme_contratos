@@ -5,6 +5,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { usingMocks } from "@/lib/api-client";
 import { useApiStatus } from "@/hooks/useApiStatus";
 import { ReviewerField } from "./ReviewerField";
+import { ResetDataButton } from "./ResetDataButton";
 
 const DEMO = "/contratos/c-042";
 
@@ -38,6 +39,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <div className="topo-dir">
           <span className="max-md:hidden">Rota Sul Logística</span>
           {usingMocks && <span className="chip chip-neutro">demo</span>}
+          {!usingMocks && <ResetDataButton />}
           <ReviewerField />
         </div>
       </header>

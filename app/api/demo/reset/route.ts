@@ -12,8 +12,17 @@ export const POST = route(async (req) => {
     throw new ApiError(404, "NOT_FOUND", "Rota não disponível");
   }
 
+  // ?estado=limpo apaga tudo: o banco fica sem nenhum contrato (botão "Resetar dados" do topo).
+  const estado = new URL(req.url).searchParams.get("estado");
+  if (estado === "limpo") {
+    await transaction(async (tx) => {
+      await tx.query(`DELETE FROM "Contract"`);
+    });
+    return ok({ ok: true, resetAt: new Date().toISOString() });
+  }
+
   // ?estado=vazio deixa a fatura sem arquivos, para enviar NF e entregas durante a gravação.
-  const filled = new URL(req.url).searchParams.get("estado") !== "vazio";
+  const filled = estado !== "vazio";
   await transaction((tx) => restoreDemoSeed(tx, { filled }));
   return ok({ ok: true, resetAt: new Date().toISOString() });
 });

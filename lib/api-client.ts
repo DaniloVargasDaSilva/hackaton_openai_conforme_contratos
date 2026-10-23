@@ -181,3 +181,9 @@ export async function readInvoicePhoto(
   }
   return request(`/api/contracts/${contractId}/nf-photo`, json(photo), UploadNfResult);
 }
+
+/** Apaga todos os dados (`limpo`) ou volta à demonstração (`demo`). Precisa de DEMO_RESET_ENABLED=1 no servidor. */
+export async function resetData(modo: "limpo" | "demo"): Promise<void> {
+  if (USE_MOCKS) return;
+  await request(`/api/demo/reset?estado=${modo === "limpo" ? "limpo" : "cheio"}`, { method: "POST" }, z.object({ ok: z.boolean() }));
+}

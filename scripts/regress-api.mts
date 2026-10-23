@@ -320,6 +320,12 @@ r = await call("POST", `/contracts/${outroId}/extract`, ContractDetail);
 ok("texto sem relação com a demo não ganha itens inventados (sem IA)", aiOn || r.data?.items?.length === 0, aiOn ? "(IA ligada: o resultado depende dela)" : `(${r.data?.items?.length} itens)`);
 
 /* ================= reset ================= */
+sec("POST /api/demo/reset?estado=limpo (botão Resetar dados)");
+r = await call("POST", "/demo/reset?estado=limpo", null);
+ok("reset limpo responde 200", r.status === 200);
+r = await call("GET", "/contracts", null);
+ok("depois do reset limpo não sobra contrato", r.status === 200 && Array.isArray(r.data) && r.data.length === 0, `(${Array.isArray(r.data) ? r.data.length : "?"})`);
+
 sec("POST /api/demo/reset (volta ao estado da demo)");
 r = await call("POST", "/demo/reset", null);
 ok("reset cheio responde 200", r.status === 200 && r.data?.ok === true, `(${r.ms} ms)`);
